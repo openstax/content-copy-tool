@@ -18,15 +18,15 @@ class WorkgroupCreator():
         # self.driver = webdriver.Firefox()
         # chrome driver option
         self.driver = webdriver.Chrome('/Users/westonnovelli/Documents/textbook-migration/research/selenium-tests/util/chromedriver')
-        self.args = util.parse_input('config.json')
-        self.logger = util.init_logger(self.args['create_workgroup_logger'])
+        self.config = util.parse_input('config.json')
+        self.logger = util.init_logger(self.config['create_workgroup_logger'])
 
     def teardown(self):
         util.tearDown(self.driver)
 
     def create_workgroup(self):
         # navigate to site
-        server_url = self.args['create_workgroup_on_server']
+        server_url = self.config['create_workgroup_on_server']
         if not re.match('https?://', server_url):
             self.logger.debug("Prepending \'http://\' to server url.")
             server_url='http://' + server_url
@@ -35,7 +35,7 @@ class WorkgroupCreator():
 
         # login
         self.logger.info("Logging in.")
-        util.login(self.driver, str(self.args['create_workgroup_with_credentials']))
+        util.login(self.driver, str(self.config['create_workgroup_with_credentials']))
         self.driver.implicitly_wait(300)
 
         # self.driver.get('https://legacydev.cnx.org/GroupWorkspaces/wg2935')
@@ -45,7 +45,7 @@ class WorkgroupCreator():
         create_link.click()
         name = self.driver.find_element_by_name('title')
         name.clear()
-        name.send_keys(str(self.args['create_workgroup_with_title'])+str(datetime.datetime.now()))
+        name.send_keys(str(self.config['create_workgroup_with_title'])+str(datetime.datetime.now()))
         create_btn = self.driver.find_element_by_name('form.button.Register')
         create_btn.click()
 
