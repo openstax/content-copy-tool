@@ -37,7 +37,7 @@ def login(driver, credentials):
 
 def parse_input(input):
     """ Returns the parsed json input """
-    return json.load(input)
+    return json.load(open(input))
 
 def encode_json(data):
     return json.dumps(json.loads(data), indent=4)

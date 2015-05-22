@@ -18,7 +18,7 @@ class WorkgroupCreator():
         # self.driver = webdriver.Firefox()
         # chrome driver option
         self.driver = webdriver.Chrome('/Users/westonnovelli/Documents/textbook-migration/research/selenium-tests/util/chromedriver')
-        self.args = util.parse_input(open('config.json'))
+        self.args = util.parse_input('config.json')
         self.logger = util.init_logger(self.args['create_workgroup_logger'])
 
     def teardown(self):
