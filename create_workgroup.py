@@ -10,8 +10,7 @@ import util as util
 
 class WorkgroupCreator():
     '''
-    This test...
-        creates a workgroup on the specified server with the specified information
+    This creates a workgroup on the specified server with the specified information
     '''
 
     def setup(self):

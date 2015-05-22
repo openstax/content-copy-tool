@@ -40,7 +40,7 @@ def parse_input(input):
     return json.load(open(input))
 
 def encode_json(data):
-    return json.dumps(json.loads(data), indent=4)
+    return json.dumps(data, indent=4)
 
 def tearDown(driver):
     driver.quit()
