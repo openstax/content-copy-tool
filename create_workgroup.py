@@ -1,6 +1,5 @@
 # This is a Selenium script that creates a workgroup.
 
-import unittest
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 import datetime
