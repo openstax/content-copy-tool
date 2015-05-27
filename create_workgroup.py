@@ -12,29 +12,27 @@ class WorkgroupCreator():
     This creates a workgroup on the specified server with the specified information
     '''
 
-    def setup(self):
+    def setup(self, logfile):
         # self.driver = webdriver.Firefox()
         # chrome driver option
         self.driver = webdriver.Chrome('/Users/westonnovelli/Documents/textbook-migration/research/selenium-tests/util/chromedriver')
-        self.config = util.parse_input('config.json')
-        self.logger = util.init_logger(self.config['create_workgroup_logger'])
+        self.logger = util.init_logger(logfile)
 
     def teardown(self):
         util.tearDown(self.driver)
 
-    def create_workgroup(self):
+    def create_workgroup(self, title, server, credentials):
         # navigate to site
-        server_url = self.config['create_workgroup_on_server']
-        if not re.match('https?://', server_url):
+        if not re.match('https?://', server):
             self.logger.debug("Prepending \'http://\' to server url.")
-            server_url='http://' + server_url
-        self.driver.get(server_url)
-        self.driver.implicitly_wait(300)
+            server='http://' + server
+        self.driver.get(server)
+        # self.driver.implicitly_wait(300)
 
         # login
         self.logger.info("Logging in.")
-        util.login(self.driver, str(self.config['create_workgroup_with_credentials']))
-        self.driver.implicitly_wait(300)
+        util.login(self.driver, credentials)
+        # self.driver.implicitly_wait(300)
 
         # self.driver.get('https://legacydev.cnx.org/GroupWorkspaces/wg2935')
         # create workgroup
@@ -43,7 +41,7 @@ class WorkgroupCreator():
         create_link.click()
         name = self.driver.find_element_by_name('title')
         name.clear()
-        name.send_keys(str(self.config['create_workgroup_with_title'])+str(datetime.datetime.now()))
+        name.send_keys(title+str(datetime.datetime.now()))
         create_btn = self.driver.find_element_by_name('form.button.Register')
         create_btn.click()
 
@@ -57,13 +55,15 @@ class WorkgroupCreator():
             self.logger.error("Workgroup ID is None")
         else:
             self.logger.info("Created Workgroup with ID: " + workgroupID)
-            print(workgroupID)
+            return workgroupID
+        return ''
 
-    def run_create_workgroup(self):
-        self.setup()
-        self.create_workgroup()
+    def run_create_workgroup(self, title, server, credentials, logfile):
+        self.setup(logfile)
+        res = self.create_workgroup(title, server, credentials)
         self.teardown()
+        return res
 
-if __name__ == "__main__":
-    wgc = WorkgroupCreator()
-    wgc.run_create_workgroup()
+# if __name__ == "__main__":
+#     wgc = WorkgroupCreator()
+#     wgc.run_create_workgroup()
