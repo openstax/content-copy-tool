@@ -5,10 +5,15 @@ def init_logger(filename):
     """
     Initializes and returns a basic logger to the specified filename.
     """
-    logger = logging.getLogger('textbook-migration-logger')
-    logger.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(filename)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    logger = logging.getLogger('content-copy-logger')
+    logger.setLevel(logging.INFO)
+    if 'console' in filename:
+        if 'Verbose' in filename:
+            logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler()
+    else:
+        handler = logging.FileHandler(filename)
+    formatter = logging.Formatter('"%(asctime)s - %(name)s - %(levelname)s - %(message)s"')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
@@ -44,3 +49,7 @@ def encode_json(data):
 
 def tearDown(driver):
     driver.quit()
+
+def quick_succession_reset(driver, reset_page):
+    mycnx_link = driver.find_element_by_link_text('MyCNX')
+    mycnx_link.click()

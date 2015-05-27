@@ -12,11 +12,13 @@ class WorkgroupCreator():
     This creates a workgroup on the specified server with the specified information
     '''
 
-    def setup(self, logfile):
+    def __init__(self, logger):
+        self.logger = logger
+
+    def setup(self):
         # self.driver = webdriver.Firefox()
         # chrome driver option
         self.driver = webdriver.Chrome('/Users/westonnovelli/Documents/textbook-migration/research/selenium-tests/util/chromedriver')
-        self.logger = util.init_logger(logfile)
 
     def teardown(self):
         util.tearDown(self.driver)
@@ -30,13 +32,13 @@ class WorkgroupCreator():
         # self.driver.implicitly_wait(300)
 
         # login
-        self.logger.info("Logging in.")
+        self.logger.debug("Logging in.")
         util.login(self.driver, credentials)
         # self.driver.implicitly_wait(300)
 
         # self.driver.get('https://legacydev.cnx.org/GroupWorkspaces/wg2935')
         # create workgroup
-        self.logger.info("Creating workgroup.")
+        self.logger.debug("Creating workgroup.")
         create_link = self.driver.find_element_by_link_text('Create a Workgroup')
         create_link.click()
         name = self.driver.find_element_by_name('title')
@@ -46,7 +48,7 @@ class WorkgroupCreator():
         create_btn.click()
 
         # get ID
-        self.logger.info("Extracting workgroup ID.")
+        self.logger.debug("Extracting workgroup ID.")
         url = self.driver.current_url
         workgroupID = re.search('GroupWorkspaces/wg[0-9]+', url)
         if workgroupID:
@@ -54,13 +56,17 @@ class WorkgroupCreator():
         if workgroupID == None:
             self.logger.error("Workgroup ID is None")
         else:
-            self.logger.info("Created Workgroup with ID: " + workgroupID)
+            self.logger.debug("Created Workgroup with ID: " + workgroupID)
             return workgroupID
         return ''
 
-    def run_create_workgroup(self, title, server, credentials, logfile):
-        self.setup(logfile)
-        res = self.create_workgroup(title, server, credentials)
+    def run_create_workgroup(self, title, server, credentials, dryrun=False):
+        self.setup()
+        info_str = "Creating workgroup: "+title+" on "+server
+        self.logger.info(info_str)
+        res = 'wg00000'
+        if not dryrun:
+            res = self.create_workgroup(title, server, credentials)
         self.teardown()
         return res
 
