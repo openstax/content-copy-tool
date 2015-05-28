@@ -77,7 +77,7 @@ class ModuleCreator():
         moduleID_field = self.driver.find_element_by_css_selector('#region-content > div > div > table > tbody > tr:nth-child(2) > td')
         moduleID = moduleID_field.get_attribute('innerHTML')
         self.logger.debug("Created module with ID: " + moduleID)
-        print(moduleID)
+        return moduleID
 
     def run_create_and_publish_module(self, title, server, credentials, workgroup_url='', dryrun=False):
         self.setup()
@@ -85,9 +85,11 @@ class ModuleCreator():
         if workgroup_url is not '':
             info_str += " in workgroup: "+str(workgroup_url)
         self.logger.info(info_str)
+        res = 'm00000'
         if not dryrun:
-            self.create_and_publish_module(title, server, credentials, workgroup_url)
+            res = self.create_and_publish_module(title, server, credentials, workgroup_url)
         self.teardown()
+        return res
 
 # if __name__ == "__main__":
 #     mc = ModuleCreator()

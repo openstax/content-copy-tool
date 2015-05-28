@@ -1,11 +1,12 @@
 import json
 import logging
+import datetime
 
 def init_logger(filename):
     """
     Initializes and returns a basic logger to the specified filename.
     """
-    logger = logging.getLogger('content-copy-logger')
+    logger = logging.getLogger('content-copy')
     logger.setLevel(logging.INFO)
     if 'console' in filename:
         if 'Verbose' in filename:
@@ -53,3 +54,18 @@ def tearDown(driver):
 def quick_succession_reset(driver, reset_page):
     mycnx_link = driver.find_element_by_link_text('MyCNX')
     mycnx_link.click()
+
+def write_list_to_file(datalist, booktitle):
+    filename = booktitle+str(datetime.datetime.now())+'.out'
+    file = open(filename, 'w')
+    for entry in datalist:
+        outstr = str(entry[0])
+        for item in entry[1:]:
+            outstr += ' '+str(item)
+        outstr += '\n'
+        file.write(outstr)
+    file.close()
+    return filename
+
+def record_creation(datalist, args):
+    datalist.append(tuple(element for element in args))
