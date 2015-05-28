@@ -2,6 +2,7 @@
 import getopt
 import sys
 import re
+import subprocess
 import util as util
 import content_util as cu
 import create_module as cm
@@ -16,27 +17,50 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters):
     cu.strip_section_numbers(bookmap)
     booktitle = cu.parse_book_title(input_file)
 
-    server = str(config['destination_server'])
+    source_server = str(config['source_server'])
+    destination_server = str(config['destination_server'])
     credentials = str(config['credentials'])
     logfile = config['logfile']
     logger = util.init_logger(logfile)
+
+    if copy:
+        for module in bookmap:
+            if module['Module ID'] is '' or module['Module ID'] is ' ':
+                logger.warn("Input file has missing module IDs, content-copy map may be incomplete")
+
+    logger.info("-------- Summary ---------------------------------------")
+    logger.info("Source: \033[92m"+source_server+"\033[0m - Content will be copied from this server")
+    logger.info("Destination: \033[92m"+destination_server+"\033[0m - Content will be created on this server")
+    logger.info("Credentials: \033[92m"+credentials+"\033[0m")
+    logger.info("Content: \033[92m"+booktitle+"\033[0m")
+    logger.info("Create workgroups? \033[92m"+str(workgroups)+"\033[0m")
+    logger.info("Copy content? \033[92m"+str(copy)+"\033[0m")
+    if dryrun:
+        logger.info("Mode: \033[92mDRY RUN\033[0m")
+
+    while True:
+        var = raw_input("\33[95mPlease verify this information. If there are warnings, consider checking your data.\nEnter:\n    \033[92m1 - Proceed\n    \033[91m2 - Cancel\n\033[0m>>> ")
+        if var is '1':
+            break
+        elif var is '2':
+            sys.exit()
 
     if not chapters:
         chapters = cu.get_chapters(bookmap)
 
     if workgroups:
         # Create a workgroup for each chapter
-        logger.info("---------Creating workgroups---------------------------------")
+        logger.info("-------- Creating workgroups --------------------------------")
         chapter_to_workgroup = {}
         wc = cw.WorkgroupCreator(logger)
         for chapter in chapters:
             wgid = wc.run_create_workgroup(booktitle+' - '+cu.get_chapter_number_and_title(bookmap, chapter), \
-                server, credentials, dryrun=dryrun)
-            if not re.match('http', server):
-                server = 'http://'+server
-            chapter_to_workgroup[chapter] = server+'/GroupWorkspaces/'+wgid
+                destination_server, credentials, dryrun=dryrun)
+            if not re.match('http', destination_server):
+                destination_server = 'http://'+destination_server
+            chapter_to_workgroup[chapter] = destination_server+'/GroupWorkspaces/'+wgid
 
-    logger.info("---------Creating modules------------------------------------")
+    logger.info("-------- Creating modules -----------------------------------")
     # Create each module
     mc = cm.ModuleCreator(logger)
     new_modules = []
@@ -46,25 +70,31 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters):
         if module['Chapter Number'] in chapters:
             if workgroups:
                 moduleID = mc.run_create_and_publish_module(module['Module Title'], \
-                    server, credentials, \
+                    destination_server, credentials, \
                     chapter_to_workgroup[module['Chapter Number']], dryrun=dryrun)
-                args.append(chapter_to_workgroup[module['Chapter Number']])
             else:
                 moduleID = mc.run_create_and_publish_module(module['Module Title'], \
-                    server, credentials, dryrun=dryrun)
+                    destination_server, credentials, dryrun=dryrun)
+
+            if copy and workgroups:
+                args.append(chapter_to_workgroup[module['Chapter Number']])
             args.append(moduleID)
-            if module['Module ID'] is not '':
+            if module['Module ID'] is not '' and copy:
                 args.append(module['Module ID'])
             util.record_creation(new_modules, args)
 
-    # logger.info("Created these new modules: "+str(new_modules))
-
+    output = util.write_list_to_file(new_modules, booktitle)
     if copy:
-        output = util.write_list_to_file(new_modules, booktitle)
-        print 'See generated migration map: \033[92m'+output+'\033[0m'
-        print '...\nNext Steps: run the transfer scripts - Feature not implemented.'
+        print 'See generated content-copy map: \033[92m'+output+'\033[0m'
+        print '...\nNext Steps: run the transfer scripts - Feature not implemented yet.'
+        # run_transfer_script(source_server, credentials, output)
+    else:
+        print 'See created module IDs: \033[92m'+output+'\033[0m'
 
-    logger.info("---- Process completed --------")
+    logger.info("------- Process completed --------")
+
+def run_transfer_script(source, credentials, content_copy_map):
+    subprocess.call("sh transfer_user.sh -f "+source+" -u "+credentials+" \'"+content_copy_map+"\'", shell=True)
 
 def main():
     try:
@@ -105,6 +135,9 @@ def main():
     if not settings or not input_file:
         print("ERROR - bad input: must have a settings file (-s) and input_file (-i). Use -h or --help for usage")
         sys.exit()
+    if not (copy and workgroups):
+        print("ERROR - bad input: if you are copying content (-c), you need to create workgroups (-w) as well. Use -h or --help for usage")
+        sys.exit()
 
     chapters.sort()
     run(settings, input_file, workgroups, dryrun, copy, chapters)
@@ -142,7 +175,7 @@ def usage():
     This will copy chapters 0, 1, 2, and 3 from the Psychology book according to the csv file, creating workgroups for each chapter, and
     to the server described by settings.json
 
-    Currently, the script will generate the migration map file if the copy flag is set.
+    Currently, the script will generate the content-copy map file if the copy flag is set.
     """
     print '    '+VERSION
     print usage

@@ -8,15 +8,14 @@ def init_logger(filename):
     """
     logger = logging.getLogger('content-copy')
     logger.setLevel(logging.INFO)
-    if 'console' in filename:
-        if 'Verbose' in filename:
-            logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-    else:
-        handler = logging.FileHandler(filename)
-    formatter = logging.Formatter('"%(asctime)s - %(name)s - %(levelname)s - %(message)s"')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    console_handler = logging.StreamHandler()
+    file_handler = logging.FileHandler(filename)
+    file_formatter = logging.Formatter('"%(asctime)s - %(name)s - %(levelname)s - %(message)s"')
+    console_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s - %(message)s", "%Y-%m-%d %H:%M:%S")
+    console_handler.setFormatter(console_formatter)
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
     return logger
 
 def login(driver, credentials):
