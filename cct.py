@@ -3,14 +3,15 @@ import getopt
 import sys
 import re
 import subprocess
+import os
 import util as util
 import http_util as http
 import content_util as cu
 import create_module as cm
 import create_workgroup as cw
 import cnx_util as cnx
-from os import remove
 import datetime
+
 # import urllib3
 """
 This script is the main script of the content-copy-tool, it requires the
@@ -55,8 +56,8 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
         if copy:
             # Confirm each entry in the bookmap has a source module ID.
             for module in bookmap:
-                if module[''] is '' or module[module_ID_column] is ' ':
-                    logger.warn("Input file has missing module IDs, content-copy map may be incomplete")
+                if module[module_ID_column] is '' or module[module_ID_column] is ' ':
+                    logger.warn("\033[91mInput file has missing module IDs, content-copy map may be incomplete.\033[0m")
         if not chapters:
             # if the user does not specify, use all of the chapters
             chapters = cu.get_chapters(bookmap, chapter_number_column)
@@ -77,10 +78,12 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
         if publish:
             for module in new_modules:
                 logger.info("Publishing module: " + module[1])
-                headers = {"In-Progress": "false"}
-                data = {"message": "copied content"}
-                http.http_request(source_server+'/content/'+module[1]+'latest/sword', headers=headers, data=data)
-                # cnx.publish_module(module[0] + '/' + module[1] + '/', credentials)
+                # auth = tuple(credentials.split(':'))
+                # headers = {"In-Progress": "false"}
+                # data = {"message": "copied content"}
+                # response = http.http_post_request(source_server+'/content/'+module[1]+'latest/sword', headers=headers, data=data, auth=auth)
+                # print response.status_code, response.reason
+                cnx.publish_module(module[0] + '/' + module[1] + '/', credentials)
     else:
         print 'See created copy map: \033[92m'+output+'\033[0m'
 
@@ -201,21 +204,33 @@ def copy_content(source, credentials, content_copy_map, roles, logger):
       that did not succeed in transfer.
     """
     for entry in content_copy_map:
-        source_moduleID = entry[2].strip('\n')
-        destination_moduleID = entry[1]
-        destination_workgroup = entry[0]
+        try:
+            source_moduleID = entry[2].strip('\n')
+            destination_moduleID = entry[1]
+            destination_workgroup = entry[0]
+        except IndexError:
+            logger.error("\033[91mFailure reading content for module, skipping.\033[0m")
+            continue
         files = []
         logger.info("Copying content for module: "+source_moduleID)
         files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/module_export?format=zip', source_moduleID, '.zip'))
         files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/rhaptos-deposit-receipt', source_moduleID, '.xml'))
         if roles:
             update_roles(source_moduleID+'.xml', credentials)
+
+        # remove index.cnxml.html from zipfile
+        dir = util.extract_zip(source_moduleID+'.zip')
+        os.remove(source_moduleID+'.zip')
+        zipdir = os.path.dirname(os.path.realpath(__file__))+'/'+dir
+        util.remove_file_from_dir(zipdir, 'index.cnxml.html')
+        util.zipdir(zipdir, source_moduleID+'.zip')
+
         res, mpart = http.http_upload_file(source_moduleID+'.xml',source_moduleID+'.zip', destination_workgroup+"/"+destination_moduleID+'/sword', credentials)
         files.append(mpart)
         # clean up temp files
         if res.status < '400':
             for file in files:
-                remove(file)
+                os.remove(file)
         else:
             print res.status, res.reason
 

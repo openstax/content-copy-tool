@@ -1,6 +1,9 @@
 import json
 import logging
 import datetime
+import os
+import zipfile
+import shutil
 """
 This file contains some basic utility functions for the content-copy-tool.
 Functions relate to tool setup, selenium, and I/O.
@@ -85,3 +88,25 @@ def write_list_to_file(datalist, booktitle):
 def record_creation(datalist, args):
     """ Appends a tuple of the args to the datalist """
     datalist.append(tuple(element for element in args))
+
+def extract_zip(zipfilepath):
+    # unzip_dir = zipfilepath[:zipfilepath.find('.zip')]
+    with zipfile.ZipFile(zipfilepath, "r") as zip:
+        temp_item = zip.namelist()[0]
+        dir = temp_item[:temp_item.find('/')]
+        zip.extractall()
+        # zip.infolist()
+    return dir
+
+def remove_file_from_dir(directory, file):
+    os.remove(directory+'/'+file)
+
+def zipdir(path, zipfilename):
+    zipf = zipfile.ZipFile(zipfilename, 'w')
+    # ziph is zipfile handle
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            zipf.write(os.path.join(root, file))
+    zipf.close()
+    # print 'removing ', path
+    shutil.rmtree(path)
