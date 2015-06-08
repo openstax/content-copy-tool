@@ -34,7 +34,6 @@ def http_request(url, headers={}, data={}):
         request.add_data(urllib.urlencode(data))
     try:
         response = urllib2.urlopen(request)
-        print response.getcode()
         return response
     except urllib2.HTTPError, e:
         print e.message
