@@ -1,6 +1,10 @@
 import json
 import logging
 import datetime
+"""
+This file contains some basic utility functions for the content-copy-tool.
+Functions relate to tool setup, selenium, and I/O.
+"""
 
 def init_logger(filename):
     """
@@ -46,12 +50,27 @@ def parse_input(input):
     return json.load(open(input))
 
 def encode_json(data):
+    """ Encodes the given data as json """
     return json.dumps(data, indent=4)
 
-def tearDown(driver):
-    driver.quit()
-
 def write_list_to_file(datalist, booktitle):
+    """
+    Writes the data list to an output file.
+
+    The output file is named: [booktitle].out and the data list may be of
+    varying format. Each entry in the list will be written out to the file
+    where each element in each entry will be separated by a space character.
+
+    For example:
+    [['a', 'b', 'c'], ['d','e'], ['f']]
+
+    will look like:
+
+    a b c
+    d e
+    f
+
+    """
     filename = booktitle+str(datetime.datetime.now())+'.out'
     file = open(filename, 'w')
     for entry in datalist:
@@ -64,4 +83,5 @@ def write_list_to_file(datalist, booktitle):
     return filename
 
 def record_creation(datalist, args):
+    """ Appends a tuple of the args to the datalist """
     datalist.append(tuple(element for element in args))

@@ -3,6 +3,9 @@ from tempfile import mkstemp
 from shutil import move
 from os import remove, close
 import re
+"""
+This file contains utility functions relative to input to the content-copy-tool
+"""
 
 def read_csv(filename):
     """
@@ -13,7 +16,6 @@ def read_csv(filename):
     to the row value (corresponding column in that row).
 
     Alternatively, if the file is a .out, it will return a read version of that.
-
     """
     if filename.endswith('.out'):
         return read_copy_map(filename), False
@@ -57,6 +59,13 @@ def get_chapter_number_and_title(bookmap, chapter_num, chapter_number_column, ch
     return ''
 
 def parse_book_title(filepath):
+    """
+    Parse the book title from the input file, assumes the input file is named:
+    [Booktitle].csv or [Booktitle].tsv
+
+    If the input file is a copy map (not a csv/tsv file), this will return the
+    input filename, so for /path/to/file/myfile.out it will return myfile.out
+    """
     if filepath.endswith('.csv'):
         return filepath[filepath.rfind('/')+1:filepath.find('.csv')]
     if filepath.endswith('.tsv'):
@@ -65,6 +74,7 @@ def parse_book_title(filepath):
         return filepath[filepath.rfind('/')+1:]
 
 def get_chapters(bookmap, chapter_number_column):
+    """ Returns a list of all the valid chapters in the bookmap """
     chapters = []
     for entry in bookmap:
         if not entry[chapter_number_column] in chapters:

@@ -1,6 +1,10 @@
 import requests
 import re
 import http_util as http
+"""
+This file contains utility functions for the content-copy-tool relative to
+the cnx servers. These are mostly focused around HTTP requests.
+"""
 
 def run_create_workgroup(title, server, credentials, logger, dryrun=False):
     """
@@ -23,6 +27,13 @@ def run_create_workgroup(title, server, credentials, logger, dryrun=False):
     return res
 
 def create_workgroup(title, server, credentials):
+    """
+    Creates a workgroup with [title] on [server] with [credentials] using
+    HTTP requests.
+
+    Returns:
+      the created workgroup ID, FAIL on failure.
+    """
     username, password = credentials.split(':')
     data = {"title": title, "form.button.Referece": "Create", "form.submitted": "1"}
     response = http.http_post_request(server+'/create_workgroup', auth=(username, password), data=data)
@@ -62,12 +73,17 @@ def run_create_and_publish_module(title, server, credentials, logger, workgroup_
     res = 'm00000'
     if not dryrun:
         module_url = create_module(title, credentials, workgroup_url)
-        if module_url == 1:
+        if module_url == 'FAIL':
             return 'FAIL'
         res = publish_module(module_url, credentials)
     return res
 
 def create_module(title, credentials, workspace_url):
+    """
+    Creates a module with [title] in [workspace_url] with [credentials].
+
+    Returns the url of the created module, Fail on failure.
+    """
     username, password = credentials.split(':')
     auth = username, password
 
@@ -77,18 +93,24 @@ def create_module(title, credentials, workspace_url):
 
     response1 = http.http_post_request(workspace_url, auth=auth, data=data1)
     if not http.verify(response1):
-        return 1
+        return 'FAIL'
     response2 = http.http_post_request(response1.url.encode('UTF-8'), auth=auth, data=data2)
     if not http.verify(response2):
-        return 1
+        return 'FAIL'
     r2url = response2.url.encode('UTF-8')
     create_url = r2url[:re.search('cc_license', r2url).start()]
     response3 = http.http_post_request(create_url + 'content_title', auth=auth, data=data3)
     if not http.verify(response3):
-        return 1
+        return 'FAIL'
     return create_url
 
 def publish_module(module_url, credentials):
+    """
+    Publishes the module at [module_url] with [credentials] using HTTP requests.
+
+    Returns:
+      The published module ID, FAIL on failure.
+    """
     username, password = credentials.split(':')
     data1 = {"message":"created module", "form.button.publish":"Publish", "form.submitted":"1"}
     response1 = http.http_post_request(module_url+'module_publish_description', auth=(username, password), data=data1)

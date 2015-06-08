@@ -12,6 +12,17 @@ import cnx_util as cnx
 from os import remove
 import datetime
 # import urllib3
+"""
+This script is the main script of the content-copy-tool, it requires the
+presence of the following utility files to execute properly.
+
+util.py
+content_util.py
+http_util.py
+cnx_util.py
+create_module.py
+create_workgroup.py
+"""
 
 VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.1'
 PRODUCTION = False
@@ -56,7 +67,7 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
 
     if placeholders:
         new_modules, output = create_placeholders(logger, workgroups, chapters, bookmap, booktitle, \
-            destination_server, credentials, copy, dryrun, selenium, chapter_number_column, chapter_title_column, module_title_column, module_ID_column)
+            destination_server, credentials, dryrun, selenium, chapter_number_column, chapter_title_column, module_title_column, module_ID_column)
     else:
         new_modules = bookmap
 
@@ -75,7 +86,52 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
 
     logger.info("------- Process completed --------")
 
-def create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destination_server, credentials, copy, dryrun, selenium, chapter_number_column, chapter_title_column, module_title_column, module_ID_column):
+def create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destination_server, \
+    credentials, dryrun, selenium, chapter_number_column, chapter_title_column, module_title_column, module_ID_column):
+    """
+    Creates placeholder workgroups and modules. This function will write out to
+    file the content copy map.
+
+    Arguments:
+      logger                - the tool's logger.
+      workgroups            - a boolean flag, if True: it will create workgroups
+                              for the modules, if False: it will create modules
+                              in personal workspace.
+      chapters              - a list of chapter numbers (strings) for which
+                              placeholders will be created. If the workgroups
+                              flag is True, a workgroup will be created for each
+                              chapter in this list.
+      bookmap               - the list of data that determines what to create
+                              placeholders for. This will be a parsed version of
+                              the csv/tsv input file.
+      booktitle             - the title of the book (or content), this is used
+                              in naming schemes.
+      destination_server    - the server on which the placeholders will be
+                              created.
+      credentials           - the user's username:password for the
+                              destination_server.
+      dryrun                - a boolean flag, if True, it will step through the
+                              inputs, but not actually create any content.
+      selenium              - a boolean flag, if True, it will use selenium for
+                              content creation, if False, it will use http
+                              requests.
+      chapter_number_column - the title of the chapter number column in the
+                              csv/tsv input file
+      chapter_title_column  - the title of the chapter title column in the
+                              csv/tsv input file
+      module_title_column   - the title of the module title column in the
+                              csv/tsv input file
+      module_ID_column      - the title of the module ID column in the csv/tsv
+                              input file
+
+    Returns:
+        A tuple of the new module information, and the name of the copy map
+        file. The new module information is a list of entries, where each entry
+        is a list of three elements:
+        [destination workspace url], [destination module id], [source_module_id]
+        Note: if the csv/tsv input file does not have source module ID's neither
+        the output file or the new modules list will have source module ID's in them.
+    """
     if workgroups:
         # Create a workgroup for each chapter
         logger.info("-------- Creating workgroups ------------------------")
@@ -121,6 +177,7 @@ def create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destin
     return new_modules, output
 
 def run_transfer_script(source, credentials, content_copy_map):
+    """ Runs the bash transfer script """
     subprocess.call("sh transfer_user.sh -f "+source+" -u "+credentials+" \'"+content_copy_map+"\'", shell=True)
 
 def copy_content(source, credentials, content_copy_map, roles, logger):
@@ -163,6 +220,11 @@ def copy_content(source, credentials, content_copy_map, roles, logger):
             print res.status, res.reason
 
 def update_roles(metadatafile, credentials):
+    """
+    Updates the roles on a module. This reads in from the settings file for
+    creator, maintainer, and rightsholder configuration.
+    """
+    # TODO put the configuration details into the settings file
     creator = ('<dcterms:creator oerdc:id=".*"', '<dcterms:creator oerdc:id="'+ credentials.split(':')[0]+'"')
     maintainer = ('<oerdc:maintainer oerdc:id=".*"', '<oerdc:maintainer oerdc:id="'+ credentials.split(':')[0]+'"')#"OpenStaxCollege"')
     rightsholder = ('<dcterms:rightsHolder oerdc:id=".*"', '<dcterms:rightsHolder oerdc:id="'+ credentials.split(':')[0]+'"')#"OSCRiceUniversity"')
@@ -170,6 +232,10 @@ def update_roles(metadatafile, credentials):
     cu.update_roles(metadatafile, replace_map)
 
 def user_confirm(logger, source_server, destination_server, credentials, booktitle, placeholders, chapters, workgroups, copy, publish, dryrun):
+    """
+    Prints a summary of the settings for the process that is about to run and
+    asks for user confirmation.
+    """
     logger.info("-------- Summary ---------------------------------------")
     logger.info("Source: \033[92m"+source_server+"\033[0m - Content will be copied from this server")
     logger.info("Destination: \033[92m"+destination_server+"\033[0m - Content will be created on this server")
@@ -286,6 +352,8 @@ def usage():
         -p, --publish
             [BROKEN] Use this flag to publish the modules after copying content to the
             destination server. This flag will only work if -c, --copy is set
+        -e, --selenium
+            Use this flag to use selenium for placeholder creation.
 
     The input file should be in the following form:
 
@@ -305,7 +373,7 @@ def usage():
     server described by settings.json
 
     Currently, the script will generate the content-copy map file if the copy
-    flag is not set. The file will be used to copy the content later with this \
+    flag is not set. The file will be used to copy the content later with this
     tool. Just load it in as the input file instead of a csv.
     """
     print '    '+VERSION

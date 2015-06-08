@@ -43,7 +43,7 @@ class WorkgroupCreator():
         create_link.click()
         name = self.driver.find_element_by_name('title')
         name.clear()
-        name.send_keys(title+str(datetime.datetime.now()))
+        name.send_keys(title)
         create_btn = self.driver.find_element_by_name('form.button.Register')
         create_btn.click()
 

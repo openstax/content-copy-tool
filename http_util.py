@@ -7,15 +7,25 @@ import re
 from base64 import b64encode
 from tempfile import mkstemp
 from os import close
+"""
+This file contains some utility functions for the content-copy-tool that relate
+to http requests.
+"""
 
 def http_post_request(url, headers={}, auth=(), data={}):
-    # print "POST to: "+url
-    # print data
+    """
+    Sends a POST request to the specified url with the specified headers, data,
+    and authentiation tuple.
+    """
     response = requests.post(url, headers=headers, auth=auth, data=data)
-    return response#.status
+    return response
 
 def http_request(url, headers={}, data={}):
-    print url
+    """
+    Sends an HTTP request to the specified url with the specified headers and
+    data. If no data is provided, the request will be a GET, if data is provided
+    the request will be a POST.
+    """
     request = urllib2.Request(url)
     if headers:
         for key, value in headers.iteritems():
@@ -30,8 +40,8 @@ def http_request(url, headers={}, data={}):
         print e.message
 
 def http_download_file(url, filename, extension):
+    """ Downloads the file at [url] and saves it as [filename.extension]. """
     fh, abs_path = mkstemp(extension, filename)
-    # r = requests.get(url, stream=True)
     try: urllib.urlretrieve(url, filename+extension)
     except urllib.error.URLError as e:
         print(e.reason)
@@ -39,6 +49,7 @@ def http_download_file(url, filename, extension):
     return abs_path
 
 def extract_boundary(filename):
+    """ Extracts the boundary line of a multipart file at filename. """
     boundary_start = 'boundary=\"'
     boundary_end = '\"'
     with open(filename) as file:
@@ -48,6 +59,11 @@ def extract_boundary(filename):
         return text[start:end]
 
 def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
+    """
+    Uploads a multipart file made up of the given xml and zip files to the
+    given url with the given credentials. The temporary multipartfile can be
+    named with the mpartfilename parameter.
+    """
     fh, abs_path = mkstemp('.mpart', mpartfilename)
     multi.makemultipart(open(xmlfile), open(zipfile), open(abs_path, 'w'))
     boundary_code = extract_boundary(abs_path)
@@ -62,7 +78,7 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
     # print response.status, response.reason
 
 def verify(response):
-    # print response.status_code
+    """ Returns True if the response code is < 400, False otherwise. """
     if response.status_code < 400:
         return True
     else:
