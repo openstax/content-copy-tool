@@ -104,7 +104,7 @@ def create_module(title, credentials, workspace_url):
         return 'FAIL'
     return create_url
 
-def publish_module(module_url, credentials):
+def publish_module(module_url, credentials, new=True):
     """
     Publishes the module at [module_url] with [credentials] using HTTP requests.
 
@@ -114,18 +114,23 @@ def publish_module(module_url, credentials):
     username, password = credentials.split(':')
     data1 = {"message":"created module", "form.button.publish":"Publish", "form.submitted":"1"}
     response1 = http.http_post_request(module_url+'module_publish_description', auth=(username, password), data=data1)
+    print response1.status_code, response1.reason
     if not http.verify(response1):
         return 'FAIL'
-    data2 = {"message":"created module", "publish":"Yes, Publish"}
-    response2 = http.http_post_request(module_url+'publishContent', auth=(username, password), data=data2)
-    if not http.verify(response2):
-        return 'FAIL'
+    if new:
+        data2 = {"message":"created module", "publish":"Yes, Publish"}
+        response2 = http.http_post_request(module_url+'publishContent', auth=(username, password), data=data2)
+        print response2.status_code, response2.reason
+        if not http.verify(response2):
+            return 'FAIL'
 
-    # extract module ID
-    url = response2.url.encode('UTF-8')
-    end_id=re.search('/content_published',url).start()
-    beg = url.rfind('/',0,end_id)+1
-    return url[beg:end_id]
+        # extract module ID
+        url = response2.url.encode('UTF-8')
+        end_id=re.search('/content_published',url).start()
+        beg = url.rfind('/',0,end_id)+1
+        return url[beg:end_id]
+    else:
+        return module_url[module_url.rfind('/', 0, -1)+1:-1]
 
     # print response2.text
     # response = http.http_post_request(module_url, \

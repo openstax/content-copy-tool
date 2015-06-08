@@ -11,8 +11,6 @@ import create_module as cm
 import create_workgroup as cw
 import cnx_util as cnx
 import datetime
-
-# import urllib3
 """
 This script is the main script of the content-copy-tool, it requires the
 presence of the following utility files to execute properly.
@@ -28,17 +26,17 @@ create_workgroup.py
 VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.1'
 PRODUCTION = False
 
-# urllib3.disable_warnings()
-
 def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish, selenium):
     config = util.parse_input(settings)
+
     chapter_number_column = str(config['chapter_number_column'])
     chapter_title_column = str(config['chapter_title_column'])
     module_title_column = str(config['module_title_column'])
     module_ID_column = str(config['module_ID_column'])
-    # conf = chapter_number_column, chapter_title_column, module_title_column, module_ID_column]
+
     bookmap, placeholders = cu.read_csv(input_file)
     booktitle = cu.parse_book_title(input_file)
+
     source_server = str(config['source_server'])
     destination_server = str(config['destination_server'])
     # ensure server addresses have 'http[s]://' prepended
@@ -75,17 +73,19 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
     if copy:
         # run_transfer_script(source_server, credentials, output) # bash version
         copy_content(source_server, credentials, new_modules, roles, logger) # python version
-        if publish:
-            for module in new_modules:
-                logger.info("Publishing module: " + module[1])
-                # auth = tuple(credentials.split(':'))
-                # headers = {"In-Progress": "false"}
-                # data = {"message": "copied content"}
-                # response = http.http_post_request(source_server+'/content/'+module[1]+'latest/sword', headers=headers, data=data, auth=auth)
-                # print response.status_code, response.reason
-                cnx.publish_module(module[0] + '/' + module[1] + '/', credentials)
-    else:
+    if placeholders:
         print 'See created copy map: \033[92m'+output+'\033[0m'
+
+    if publish:
+        for module in new_modules:
+            logger.info("Publishing module: " + module[1])
+            # auth = tuple(credentials.split(':'))
+            # headers = {"In-Progress": "false"}
+            # data = {"message": "copied content"}
+            # response = http.http_post_request(source_server+'/content/'+module[1]+'latest/sword', headers=headers, data=data, auth=auth)
+            # print response.status_code, response.reason
+            id = cnx.publish_module(module[0] + '/' + module[1] + '/', credentials, False)
+            print id
 
     logger.info("------- Process completed --------")
 
@@ -232,7 +232,7 @@ def copy_content(source, credentials, content_copy_map, roles, logger):
             for file in files:
                 os.remove(file)
         else:
-            print res.status, res.reason
+            print res.status, res.reason # TODO better handle for production
 
 def update_roles(metadatafile, credentials):
     """
@@ -252,22 +252,21 @@ def user_confirm(logger, source_server, destination_server, credentials, booktit
     asks for user confirmation.
     """
     logger.info("-------- Summary ---------------------------------------")
-    logger.info("Source: \033[92m"+source_server+"\033[0m - Content will be copied from this server")
-    logger.info("Destination: \033[92m"+destination_server+"\033[0m - Content will be created on this server")
+    logger.info("Source: \033[95m"+source_server+"\033[0m - Content will be copied from this server")
+    logger.info("Destination: \033[95m"+destination_server+"\033[0m - Content will be created on this server")
     if PRODUCTION:
-        logger.info("User: \033[92m"+credentials.split(':')[0]+"\033[0m")
+        logger.info("User: \033[95m"+credentials.split(':')[0]+"\033[0m")
     else:
-        logger.info("Credentials: \033[92m"+credentials+"\033[0m")
-    logger.info("Content: \033[92m"+booktitle+"\033[0m")
-    logger.info("Create placeholders?: \033[92m"+str(placeholders)+"\033[0m")
+        logger.info("Credentials: \033[95m"+credentials+"\033[0m")
+    logger.info("Content: \033[95m"+booktitle+"\033[0m")
+    logger.info("Chapters: \033[95m"+str(chapters)+"\033[0m")
+    logger.info("Create placeholders?: \033[95m"+str(placeholders)+"\033[0m")
     if placeholders:
-        logger.info("Chapters: \033[92m"+str(chapters)+"\033[0m")
-        logger.info("Create workgroups? \033[92m"+str(workgroups)+"\033[0m")
-    logger.info("Copy content? \033[92m"+str(copy)+"\033[0m")
-    if copy:
-        logger.info("Publish content? \033[92m"+str(publish)+"\033[0m")
+        logger.info("Create workgroups? \033[95m"+str(workgroups)+"\033[0m")
+    logger.info("Copy content? \033[95m"+str(copy)+"\033[0m")
+    logger.info("Publish content? \033[95m"+str(publish)+"\033[0m")
     if dryrun:
-        logger.info("NOTE: \033[92mDRY RUN\033[0m")
+        logger.info("------------NOTE: \033[95mDRY RUN\033[0m-----------------")
 
     while True:
         var = raw_input("\33[95mPlease verify this information. If there are warnings, consider checking your data.\nEnter:\n    \033[92m1\033[0m - Proceed\n    \033[91m2\033[0m - Cancel\n>>> ")
@@ -295,7 +294,7 @@ def main():
     input_file = None
     chapters = []
     for o, a in opts:
-        if o == "-w":
+        if o in ("-w", "--workgroups"):
             workgroups = True
         elif o in ("-h", "--help"):
             usage()

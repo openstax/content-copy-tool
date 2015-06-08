@@ -40,12 +40,13 @@ def http_request(url, headers={}, data={}):
 
 def http_download_file(url, filename, extension):
     """ Downloads the file at [url] and saves it as [filename.extension]. """
-    fh, abs_path = mkstemp(extension, filename)
+    # fh, abs_path = mkstemp(extension, filename)
     try: urllib.urlretrieve(url, filename+extension)
     except urllib.error.URLError as e:
         print(e.reason)
-    close(fh)
-    return abs_path
+    # close(fh)
+    # print abs_path
+    return filename+extension
 
 def extract_boundary(filename):
     """ Extracts the boundary line of a multipart file at filename. """

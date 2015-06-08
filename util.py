@@ -74,7 +74,7 @@ def write_list_to_file(datalist, booktitle):
     f
 
     """
-    filename = booktitle+str(datetime.datetime.now())+'.out'
+    filename = booktitle+'.out'#str(datetime.datetime.now())+'.out'
     file = open(filename, 'w')
     for entry in datalist:
         outstr = str(entry[0])
