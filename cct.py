@@ -50,50 +50,13 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
         placeholders, chapters, workgroups, copy, publish, dryrun)
 
     if placeholders:
-        if workgroups:
-            # Create a workgroup for each chapter
-            logger.info("-------- Creating workgroups ------------------------")
-            chapter_to_workgroup = {}
-            wc = cw.WorkgroupCreator(logger) # selenium
-            for chapter in chapters:
-                wgtitle = booktitle+' - '+ cu.get_chapter_number_and_title(bookmap, chapter)+str(datetime.datetime.now())
-                wgid = wc.run_create_workgroup(wgtitle, destination_server, credentials, dryrun=dryrun) # selenium
-                # wgid = cnx.run_create_workgroup(wgtitle, destination_server, credentials, logger, dryrun=dryrun) # http
-                if wgid is 'FAIL' or not re.match('wg[0-9]+', wgid):
-                    logger.error("Workgroup " + wgtitle + " failed to be created, skipping chapter " + chapter)
-                    chapters.remove(chapter)
-                chapter_to_workgroup[chapter] = destination_server + '/GroupWorkspaces/' + wgid
-
-        logger.info("-------- Creating modules -------------------------------")
-        # Create each module
-        mc = cm.ModuleCreator(logger)
-        new_modules = []
-        moduleID = ''
-        for module in bookmap:
-            args = []
-            if module['Chapter Number'] in chapters:
-                workgroup_url = 'Members/'
-                if workgroups:
-                    workgroup_url = chapter_to_workgroup[module['Chapter Number']]
-
-                moduleID = mc.run_create_and_publish_module(module['Module Title'], destination_server, credentials, workgroup_url, dryrun=dryrun) # selenium
-                # moduleID = cnx.run_create_and_publish_module(module['Module Title'], destination_server, credentials, workgroup_url, logger, dryrun=dryrun) # http
-
-                # bookkeeping for later
-                if copy and workgroups:
-                    args.append(chapter_to_workgroup[module['Chapter Number']])
-                args.append(moduleID)
-                if module['Module ID'] is not '' and copy:
-                    args.append(module['Module ID'])
-                util.record_creation(new_modules, args)
-
-        output = util.write_list_to_file(new_modules, booktitle)
+        new_modules = create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destination_server, credentials, copy, dryrun)
     else:
         new_modules = bookmap
 
     if copy:
         # run_transfer_script(source_server, credentials, output) # bash version
-        copy_content(source_server, credentials, new_modules, roles, logger)
+        copy_content(source_server, credentials, new_modules, roles, logger) # python version
         if publish:
             for module in new_modules:
                 logger.info("Publishing module: " + module[1])
@@ -106,9 +69,49 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
 
     logger.info("------- Process completed --------")
 
+def create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destination_server, credentials, copy, dryrun):
+    if workgroups:
+        # Create a workgroup for each chapter
+        logger.info("-------- Creating workgroups ------------------------")
+        chapter_to_workgroup = {}
+        wc = cw.WorkgroupCreator(logger) # selenium
+        for chapter in chapters:
+            wgtitle = booktitle+' - '+ cu.get_chapter_number_and_title(bookmap, chapter)+str(datetime.datetime.now())
+            wgid = wc.run_create_workgroup(wgtitle, destination_server, credentials, dryrun=dryrun) # selenium version
+            # wgid = cnx.run_create_workgroup(wgtitle, destination_server, credentials, logger, dryrun=dryrun) # http version
+            if wgid is 'FAIL' or not re.match('wg[0-9]+', wgid):
+                logger.error("Workgroup " + wgtitle + " failed to be created, skipping chapter " + chapter)
+                chapters.remove(chapter)
+            chapter_to_workgroup[chapter] = destination_server + '/GroupWorkspaces/' + wgid
+
+    logger.info("-------- Creating modules -------------------------------")
+    # Create each module
+    new_modules = []
+    mc = cm.ModuleCreator(logger)
+    moduleID = ''
+    for module in bookmap:
+        args = []
+        if module['Chapter Number'] in chapters:
+            workgroup_url = 'Members/'
+            if workgroups:
+                workgroup_url = chapter_to_workgroup[module['Chapter Number']]
+
+            moduleID = mc.run_create_and_publish_module(module['Module Title'], destination_server, credentials, workgroup_url, dryrun=dryrun) # selenium version
+            # moduleID = cnx.run_create_and_publish_module(module['Module Title'], destination_server, credentials, workgroup_url, logger, dryrun=dryrun) # http version
+
+            # bookkeeping for later
+            if copy and workgroups:
+                args.append(chapter_to_workgroup[module['Chapter Number']])
+            args.append(moduleID)
+            if module['Module ID'] is not '' and copy:
+                args.append(module['Module ID'])
+            util.record_creation(new_modules, args)
+
+    output = util.write_list_to_file(new_modules, booktitle)
+    return new_modules
+
 def run_transfer_script(source, credentials, content_copy_map):
-    subprocess.call("sh transfer_user.sh -f "+source+" -u "+credentials\
-        +" \'"+content_copy_map+"\'", shell=True)
+    subprocess.call("sh transfer_user.sh -f "+source+" -u "+credentials+" \'"+content_copy_map+"\'", shell=True)
 
 def copy_content(source, credentials, content_copy_map, roles, logger):
     """
@@ -134,19 +137,13 @@ def copy_content(source, credentials, content_copy_map, roles, logger):
         source_moduleID = entry[2]
         destination_moduleID = entry[1]
         destination_workgroup = entry[0]
-        logger.info("Copying content for module: "+source_moduleID)
         files = []
-        files.append(http.http_download_file(source+'/content/'+\
-            source_moduleID+'/latest/module_export?format=zip', \
-            source_moduleID, '.zip'))
-        files.append(http.http_download_file(source+'/content/'+\
-            source_moduleID+'/latest/rhaptos-deposit-receipt', \
-            source_moduleID, '.xml'))
+        logger.info("Copying content for module: "+source_moduleID)
+        files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/module_export?format=zip', source_moduleID, '.zip'))
+        files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/rhaptos-deposit-receipt', source_moduleID, '.xml'))
         if roles:
             update_roles(source_moduleID+'.xml', credentials)
-        res, mpart = http.http_upload_file(source_moduleID+'.xml', \
-            source_moduleID+'.zip', destination_workgroup+"/"+\
-            destination_moduleID+'/sword', credentials)
+        res, mpart = http.http_upload_file(source_moduleID+'.xml',source_moduleID+'.zip', destination_workgroup+"/"+destination_moduleID+'/sword', credentials)
         files.append(mpart)
         # clean up temp files
         if res.status < '400':
