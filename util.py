@@ -16,6 +16,7 @@ def init_logger(filename):
     file_handler.setFormatter(file_formatter)
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
+    # logger.captureWarnings(True)
     return logger
 
 def login(driver, credentials):
@@ -49,10 +50,6 @@ def encode_json(data):
 
 def tearDown(driver):
     driver.quit()
-
-def quick_succession_reset(driver, reset_page):
-    mycnx_link = driver.find_element_by_link_text('MyCNX')
-    mycnx_link.click()
 
 def write_list_to_file(datalist, booktitle):
     filename = booktitle+str(datetime.datetime.now())+'.out'

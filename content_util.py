@@ -1,16 +1,35 @@
 import csv
+from tempfile import mkstemp
+from shutil import move
+from os import remove, close
 import re
 
 def read_csv(filename):
     """
-    Reads in a csv file and returns a list of the entries
+    Reads in a csv file and returns a list of the entries, will also accept a
+    tsv file.
 
     Each entry is a dictionary that maps the column title (first line in csv)
     to the row value (corresponding column in that row).
 
+    Alternatively, if the file is a .out, it will return a read version of that.
+
     """
-    bookmap = csv.DictReader(open(filename))
-    return list(bookmap)
+    if filename.endswith('.out'):
+        return read_copy_map(filename), False
+    delimiter = ','
+    if filename.endswith('.tsv'):
+        delimiter = '\t'
+    bookmap = csv.DictReader(open(filename), delimiter=delimiter)
+    return list(bookmap), True
+
+def read_copy_map(filename):
+    """ The copy map is a text file with lines of space separated values """
+    file = open(filename)
+    map = []
+    for line in file:
+        map.append(line.split(' '))
+    return map
 
 def is_valid(module):
     """ Determines if a module is valid or invalid """
@@ -38,7 +57,12 @@ def get_chapter_number_and_title(bookmap, chapter_num):
     return ''
 
 def parse_book_title(filepath):
-    return filepath[filepath.rfind('/')+1:filepath.find('.csv')]
+    if filepath.endswith('.csv'):
+        return filepath[filepath.rfind('/')+1:filepath.find('.csv')]
+    if filepath.endswith('.tsv'):
+        return filepath[filepath.rfind('/')+1:filepath.find('.tsv')]
+    else:
+        return filepath[filepath.rfind('/')+1:]
 
 def get_chapters(bookmap):
     chapters = []
@@ -46,3 +70,22 @@ def get_chapters(bookmap):
         if not entry['Chapter Number'] in chapters:
             chapters.append(entry['Chapter Number'])
     return chapters
+
+def update_roles(file_path, replace_map):
+    """
+    Reads through the input file and replaces content according to the replace map
+
+    The replace_map is a list of tuples: (pattern, substitute text)
+    """
+    fh, abs_path = mkstemp()
+    with open(abs_path,'w') as new_file:
+        with open(file_path) as old_file:
+            for line in old_file:
+                for pattern, subst in replace_map:
+                    line = re.sub(pattern, subst, line)
+                new_file.write(line)
+    close(fh)
+    # Remove original file
+    remove(file_path)
+    # Move new file
+    move(abs_path, file_path)

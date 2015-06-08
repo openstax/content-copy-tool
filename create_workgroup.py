@@ -61,6 +61,19 @@ class WorkgroupCreator():
         return ''
 
     def run_create_workgroup(self, title, server, credentials, dryrun=False):
+        """
+        Runs selenium to create a workgroup with the given information
+
+        Arguments:
+          title       - the title of the workgroup
+          server      - the server to create the workgroup on
+          credentials - the username:password to use when creating the workgroup
+          dryrun      - (optional) a flag to step through the setup and teardown
+                        without actually creating the workgroup
+
+        Returns:
+          the ID of the created workgroup, 'wg0000' if dryrun or failure
+        """
         self.setup()
         info_str = "Creating workgroup: "+title+" on "+server
         self.logger.info(info_str)

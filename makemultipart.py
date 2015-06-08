@@ -21,7 +21,7 @@ def makemultipart(atomfile, package, outfile):
     message.attach(atompart)
     message.attach(payloadpart)
 
-    print(message.as_string(unixfrom=False))
+    # print(message.as_string(unixfrom=False))
     outfile.write(message.as_string(unixfrom=False))
     outfile.close()
 

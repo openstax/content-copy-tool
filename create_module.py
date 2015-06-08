@@ -24,7 +24,7 @@ class ModuleCreator():
     def teardown(self):
         util.tearDown(self.driver)
 
-    def create_and_publish_module(self, title, server, credentials, workgroup_url=''):
+    def create_and_publish_module(self, title, server, credentials, workgroup_url='Members/'):
         # navigate to site
         if not re.match('https?://', server):
             self.logger.debug("Prepending \'http://\' to server url.")
@@ -79,10 +79,25 @@ class ModuleCreator():
         self.logger.debug("Created module with ID: " + moduleID)
         return moduleID
 
-    def run_create_and_publish_module(self, title, server, credentials, workgroup_url='', dryrun=False):
+    def run_create_and_publish_module(self, title, server, credentials, workgroup_url='Members/', dryrun=False):
+        """
+        Runs selenium to create and publish a module with the given information
+
+        Arguments:
+          title         - the title of the module
+          server        - the server to create the module on
+          credentials   - the username:password to use when creating the module
+          workgroup_url - (optional) the workgroup to create the module in,
+                          will create it outside of workgroups if not specified
+          dryrun        - (optional) a flag to step through the setup and
+                          teardown without actually creating the module
+
+        Returns:
+          the ID of the created module, 'm00000' if dryrun or failure
+        """
         self.setup()
         info_str = "Creating module: "+title+" on "+server
-        if workgroup_url is not '':
+        if workgroup_url is not 'Members/':
             info_str += " in workgroup: "+str(workgroup_url)
         self.logger.info(info_str)
         res = 'm00000'
