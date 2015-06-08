@@ -31,29 +31,29 @@ def read_copy_map(filename):
         map.append(line.split(' '))
     return map
 
-def is_valid(module):
+def is_valid(module, module_title_column):
     """ Determines if a module is valid or invalid """
-    if module['Module Title'] is '' or module['Module Title'] is ' ':
+    if module[module_title_column] is '' or module[module_title_column] is ' ':
         return False
     return True
 
-def remove_invalid_modules(bookmap):
+def remove_invalid_modules(bookmap, module_title_column):
     """ Removes invalid modules """
-    bookmap[:] = [entry for entry in bookmap if is_valid(entry)]
+    bookmap[:] = [entry for entry in bookmap if is_valid(entry, module_title_column)]
 
-def strip_section_numbers(bookmap):
+def strip_section_numbers(bookmap, module_title_column):
     """ Strips the section numbers from the module title """
     for module in bookmap:
-        if re.match('[0-9]', module['Module Title']):
-            with_num = module['Module Title']
+        if re.match('[0-9]', module[module_title_column]):
+            with_num = module[module_title_column]
             without_num = with_num[str.index(with_num, ' ')+1:]
-            module['Module Title'] = without_num
+            module[module_title_column] = without_num
 
-def get_chapter_number_and_title(bookmap, chapter_num):
+def get_chapter_number_and_title(bookmap, chapter_num, chapter_number_column, chapter_title_column):
     """ Gets the title of the provided chapter number in the provide bookmap """
     for module in bookmap:
-        if module['Chapter Number'] is str(chapter_num):
-            return module['Chapter Number']+' '+module['Chapter Title']
+        if module[chapter_number_column] is str(chapter_num):
+            return module[chapter_number_column]+' '+module[chapter_title_column]
     return ''
 
 def parse_book_title(filepath):
@@ -64,11 +64,11 @@ def parse_book_title(filepath):
     else:
         return filepath[filepath.rfind('/')+1:]
 
-def get_chapters(bookmap):
+def get_chapters(bookmap, chapter_number_column):
     chapters = []
     for entry in bookmap:
-        if not entry['Chapter Number'] in chapters:
-            chapters.append(entry['Chapter Number'])
+        if not entry[chapter_number_column] in chapters:
+            chapters.append(entry[chapter_number_column])
     return chapters
 
 def update_roles(file_path, replace_map):

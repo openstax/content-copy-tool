@@ -31,7 +31,10 @@ def http_request(url, headers={}, data={}):
 
 def http_download_file(url, filename, extension):
     fh, abs_path = mkstemp(extension, filename)
-    urllib.urlretrieve(url, filename+extension)
+    # r = requests.get(url, stream=True)
+    try: urllib.urlretrieve(url, filename+extension)
+    except urllib.error.URLError as e:
+        print(e.reason)
     close(fh)
     return abs_path
 
@@ -60,7 +63,11 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
 
 def verify(response):
     # print response.status_code
-    return response.status_code < 400
+    if response.status_code < 400:
+        return True
+    else:
+        print response.status_code, response.reason
+        return False
 
 # http_download_file('http://legacy.cnx.org/content/m10672/latest/module_export?format=zip', 'example.zip')
 # http_download_file('http://legacy.cnx.org/content/m10672/latest/rhaptos-deposit-receipt', 'example.xml')

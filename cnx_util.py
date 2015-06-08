@@ -91,16 +91,11 @@ def create_module(title, credentials, workspace_url):
 def publish_module(module_url, credentials):
     username, password = credentials.split(':')
     data1 = {"message":"created module", "form.button.publish":"Publish", "form.submitted":"1"}
-    # print module_url+'module_publish_description'
     response1 = http.http_post_request(module_url+'module_publish_description', auth=(username, password), data=data1)
-    # print response1.status_code, response1.reason
     if not http.verify(response1):
         return 'FAIL'
     data2 = {"message":"created module", "publish":"Yes, Publish"}
-    # print module_url+'publishContent'
     response2 = http.http_post_request(module_url+'publishContent', auth=(username, password), data=data2)
-    # print response2.status_code, response2.reason
-    # print response2.url
     if not http.verify(response2):
         return 'FAIL'
 

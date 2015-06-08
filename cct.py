@@ -11,46 +11,52 @@ import create_workgroup as cw
 import cnx_util as cnx
 from os import remove
 import datetime
-import urllib3
+# import urllib3
 
 VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.1'
 PRODUCTION = False
 
 # urllib3.disable_warnings()
 
-def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish):
+def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish, selenium):
     config = util.parse_input(settings)
+    chapter_number_column = str(config['chapter_number_column'])
+    chapter_title_column = str(config['chapter_title_column'])
+    module_title_column = str(config['module_title_column'])
+    module_ID_column = str(config['module_ID_column'])
+    # conf = chapter_number_column, chapter_title_column, module_title_column, module_ID_column]
     bookmap, placeholders = cu.read_csv(input_file)
     booktitle = cu.parse_book_title(input_file)
     source_server = str(config['source_server'])
     destination_server = str(config['destination_server'])
-    # ensure server addresses have http[s]:// prepended
-    if not re.match('https?', source_server):
+    # ensure server addresses have 'http[s]://' prepended
+    if not re.match('https?://', source_server):
         source_server = 'http://' + source_server
-    if not re.match('https?', destination_server):
+    if not re.match('https?://', destination_server):
         destination_server = 'http://' + destination_server
     credentials = str(config['credentials'])
     logfile = config['logfile']
     logger = util.init_logger(logfile)
 
     if placeholders:
-        cu.remove_invalid_modules(bookmap)
-        cu.strip_section_numbers(bookmap)
+        cu.remove_invalid_modules(bookmap, module_title_column)
+        cu.strip_section_numbers(bookmap, module_title_column)
         if copy:
             # Confirm each entry in the bookmap has a source module ID.
             for module in bookmap:
-                if module['Module ID'] is '' or module['Module ID'] is ' ':
+                if module[''] is '' or module[module_ID_column] is ' ':
                     logger.warn("Input file has missing module IDs, content-copy map may be incomplete")
         if not chapters:
             # if the user does not specify, use all of the chapters
-            chapters = cu.get_chapters(bookmap)
+            chapters = cu.get_chapters(bookmap, chapter_number_column)
 
     # Check before you run
     user_confirm(logger, source_server, destination_server, credentials, booktitle, \
         placeholders, chapters, workgroups, copy, publish, dryrun)
 
     if placeholders:
-        new_modules = create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destination_server, credentials, copy, dryrun)
+        new_modules, output = create_placeholders(logger, workgroups, chapters, bookmap, booktitle, \
+            destination_server, credentials, copy, dryrun, selenium, chapter_number_column, chapter_title_column, module_title_column, module_ID_column)
     else:
         new_modules = bookmap
 
@@ -63,22 +69,24 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
                 headers = {"In-Progress": "false"}
                 data = {"message": "copied content"}
                 http.http_request(source_server+'/content/'+module[1]+'latest/sword', headers=headers, data=data)
-        #         cnx.publish_module(module[0] + '/' + module[1] + '/', credentials)
+                # cnx.publish_module(module[0] + '/' + module[1] + '/', credentials)
     else:
-        print 'See created module IDs: \033[92m'+output+'\033[0m'
+        print 'See created copy map: \033[92m'+output+'\033[0m'
 
     logger.info("------- Process completed --------")
 
-def create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destination_server, credentials, copy, dryrun):
+def create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destination_server, credentials, copy, dryrun, selenium, chapter_number_column, chapter_title_column, module_title_column, module_ID_column):
     if workgroups:
         # Create a workgroup for each chapter
         logger.info("-------- Creating workgroups ------------------------")
         chapter_to_workgroup = {}
         wc = cw.WorkgroupCreator(logger) # selenium
         for chapter in chapters:
-            wgtitle = booktitle+' - '+ cu.get_chapter_number_and_title(bookmap, chapter)+str(datetime.datetime.now())
-            wgid = wc.run_create_workgroup(wgtitle, destination_server, credentials, dryrun=dryrun) # selenium version
-            # wgid = cnx.run_create_workgroup(wgtitle, destination_server, credentials, logger, dryrun=dryrun) # http version
+            wgtitle = booktitle+' - '+ cu.get_chapter_number_and_title(bookmap, chapter, chapter_number_column, chapter_title_column)+str(datetime.datetime.now())
+            if selenium:
+                wgid = wc.run_create_workgroup(wgtitle, destination_server, credentials, dryrun=dryrun)
+            else:
+                wgid = cnx.run_create_workgroup(wgtitle, destination_server, credentials, logger, dryrun=dryrun)
             if wgid is 'FAIL' or not re.match('wg[0-9]+', wgid):
                 logger.error("Workgroup " + wgtitle + " failed to be created, skipping chapter " + chapter)
                 chapters.remove(chapter)
@@ -91,24 +99,26 @@ def create_placeholders(logger, workgroups, chapters, bookmap, booktitle, destin
     moduleID = ''
     for module in bookmap:
         args = []
-        if module['Chapter Number'] in chapters:
+        if module[chapter_number_column] in chapters:
             workgroup_url = 'Members/'
             if workgroups:
-                workgroup_url = chapter_to_workgroup[module['Chapter Number']]
+                workgroup_url = chapter_to_workgroup[module[chapter_number_column]]
 
-            moduleID = mc.run_create_and_publish_module(module['Module Title'], destination_server, credentials, workgroup_url, dryrun=dryrun) # selenium version
-            # moduleID = cnx.run_create_and_publish_module(module['Module Title'], destination_server, credentials, workgroup_url, logger, dryrun=dryrun) # http version
+            if selenium:
+                moduleID = mc.run_create_and_publish_module(module[module_title_column], destination_server, credentials, workgroup_url, dryrun=dryrun) # selenium version
+            else:
+                moduleID = cnx.run_create_and_publish_module(module[module_title_column], destination_server, credentials, logger, workgroup_url, dryrun=dryrun) # http version
 
             # bookkeeping for later
-            if copy and workgroups:
-                args.append(chapter_to_workgroup[module['Chapter Number']])
+            if workgroups:
+                args.append(chapter_to_workgroup[module[chapter_number_column]])
             args.append(moduleID)
-            if module['Module ID'] is not '' and copy:
-                args.append(module['Module ID'])
+            if module[module_ID_column] is not '':
+                args.append(module[module_ID_column])
             util.record_creation(new_modules, args)
 
     output = util.write_list_to_file(new_modules, booktitle)
-    return new_modules
+    return new_modules, output
 
 def run_transfer_script(source, credentials, content_copy_map):
     subprocess.call("sh transfer_user.sh -f "+source+" -u "+credentials+" \'"+content_copy_map+"\'", shell=True)
@@ -134,7 +144,7 @@ def copy_content(source, credentials, content_copy_map, roles, logger):
       that did not succeed in transfer.
     """
     for entry in content_copy_map:
-        source_moduleID = entry[2]
+        source_moduleID = entry[2].strip('\n')
         destination_moduleID = entry[1]
         destination_workgroup = entry[0]
         files = []
@@ -149,6 +159,8 @@ def copy_content(source, credentials, content_copy_map, roles, logger):
         if res.status < '400':
             for file in files:
                 remove(file)
+        else:
+            print res.status, res.reason
 
 def update_roles(metadatafile, credentials):
     creator = ('<dcterms:creator oerdc:id=".*"', '<dcterms:creator oerdc:id="'+ credentials.split(':')[0]+'"')
@@ -185,9 +197,9 @@ def user_confirm(logger, source_server, destination_server, credentials, booktit
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvs:i:a:wdcrp", ["help", \
+        opts, args = getopt.getopt(sys.argv[1:], "hvs:i:a:wdcrpe", ["help", \
             "version", "settings=","input-file=","chapters=", "workgroups", \
-            "dryrun", "copy", "roles", "publish"])
+            "dryrun", "copy", "roles", "publish", "selenium"])
     except getopt.GetoptError as err:
         print str(err)
         usage()
@@ -197,6 +209,7 @@ def main():
     copy = False
     roles = False
     publish = False
+    selenium = False
     settings = None
     input_file = None
     chapters = []
@@ -221,6 +234,8 @@ def main():
         elif o in ("-p", "--publish"):
             publish = True
             print "Warning, publishing copied modules is currently not working." # TODO fix publishing
+        elif o in ("-e", "--selenium"):
+            selenium = True
         elif o in ("-v", "--version"):
             print VERSION
             sys.exit()
@@ -236,7 +251,7 @@ def main():
         sys.exit()
 
     chapters.sort()
-    run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish)
+    run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish, selenium)
 
 def usage():
     usage = """
@@ -263,7 +278,7 @@ def usage():
         -c, --copy
             Will copy the data from source server to destination server. Without
             this flag, placeholder modules will be created, but no content will
-            be copied over. Using this flag, input file must have a 'Module ID'
+            be copied over. Using this flag, input file must have a module ID
             column filled for each module that will be copied.
         -r, --roles
             Use this flag is you want to update the roles according to the
