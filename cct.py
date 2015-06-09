@@ -10,6 +10,7 @@ import content_util as cu
 import create_module as cm
 import create_workgroup as cw
 import cnx_util as cnx
+import cli as cli
 import datetime
 """
 This script is the main script of the content-copy-tool, it requires the
@@ -21,6 +22,7 @@ http_util.py
 cnx_util.py
 create_module.py
 create_workgroup.py
+cli.py
 """
 
 VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.1'
@@ -72,20 +74,20 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
 
     if copy:
         # run_transfer_script(source_server, credentials, output) # bash version
-        copy_content(source_server, credentials, new_modules, roles, logger) # python version
+        copy_content(source_server, credentials, new_modules, roles, logger, dryrun) # python version
     if placeholders:
         print 'See created copy map: \033[92m'+output+'\033[0m'
 
     if publish:
         for module in new_modules:
             logger.info("Publishing module: " + module[1])
+            if not dryrun:
+                id = cnx.publish_module(module[0] + '/' + module[1] + '/', credentials, False)
             # auth = tuple(credentials.split(':'))
             # headers = {"In-Progress": "false"}
             # data = {"message": "copied content"}
             # response = http.http_post_request(source_server+'/content/'+module[1]+'latest/sword', headers=headers, data=data, auth=auth)
             # print response.status_code, response.reason
-            id = cnx.publish_module(module[0] + '/' + module[1] + '/', credentials, False)
-            print id
 
     logger.info("------- Process completed --------")
 
@@ -183,7 +185,7 @@ def run_transfer_script(source, credentials, content_copy_map):
     """ Runs the bash transfer script """
     subprocess.call("sh transfer_user.sh -f "+source+" -u "+credentials+" \'"+content_copy_map+"\'", shell=True)
 
-def copy_content(source, credentials, content_copy_map, roles, logger):
+def copy_content(source, credentials, content_copy_map, roles, logger, dryrun):
     """
     Copies content from source server to server specified by each entry in the
     content copy map.
@@ -213,26 +215,27 @@ def copy_content(source, credentials, content_copy_map, roles, logger):
             continue
         files = []
         logger.info("Copying content for module: "+source_moduleID)
-        files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/module_export?format=zip', source_moduleID, '.zip'))
-        files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/rhaptos-deposit-receipt', source_moduleID, '.xml'))
-        if roles:
-            update_roles(source_moduleID+'.xml', credentials)
+        if not dryrun:
+            files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/module_export?format=zip', source_moduleID, '.zip'))
+            files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/rhaptos-deposit-receipt', source_moduleID, '.xml'))
+            if roles:
+                update_roles(source_moduleID+'.xml', credentials)
 
-        # remove index.cnxml.html from zipfile
-        dir = util.extract_zip(source_moduleID+'.zip')
-        os.remove(source_moduleID+'.zip')
-        zipdir = os.path.dirname(os.path.realpath(__file__))+'/'+dir
-        util.remove_file_from_dir(zipdir, 'index.cnxml.html')
-        util.zipdir(zipdir, source_moduleID+'.zip')
+            # remove index.cnxml.html from zipfile
+            dir = util.extract_zip(source_moduleID+'.zip')
+            os.remove(source_moduleID+'.zip')
+            zipdir = os.path.dirname(os.path.realpath(__file__))+'/'+dir
+            util.remove_file_from_dir(zipdir, 'index.cnxml.html')
+            util.zipdir(zipdir, source_moduleID+'.zip')
 
-        res, mpart = http.http_upload_file(source_moduleID+'.xml',source_moduleID+'.zip', destination_workgroup+"/"+destination_moduleID+'/sword', credentials)
-        files.append(mpart)
-        # clean up temp files
-        if res.status < '400':
-            for file in files:
-                os.remove(file)
-        else:
-            print res.status, res.reason # TODO better handle for production
+            res, mpart = http.http_upload_file(source_moduleID+'.xml',source_moduleID+'.zip', destination_workgroup+"/"+destination_moduleID+'/sword', credentials)
+            files.append(mpart)
+            # clean up temp files
+            if res.status < '400':
+                for file in files:
+                    os.remove(file)
+            else:
+                print res.status, res.reason # TODO better handle for production
 
 def update_roles(metadatafile, credentials):
     """
@@ -276,122 +279,129 @@ def user_confirm(logger, source_server, destination_server, credentials, booktit
             sys.exit()
 
 def main():
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvs:i:a:wdcrpe", ["help", \
-            "version", "settings=","input-file=","chapters=", "workgroups", \
-            "dryrun", "copy", "roles", "publish", "selenium"])
-    except getopt.GetoptError as err:
-        print str(err)
-        usage()
-        sys.exit(2)
-    workgroups = False
-    dryrun = False
-    copy = False
-    roles = False
-    publish = False
-    selenium = False
-    settings = None
-    input_file = None
-    chapters = []
-    for o, a in opts:
-        if o in ("-w", "--workgroups"):
-            workgroups = True
-        elif o in ("-h", "--help"):
-            usage()
-            sys.exit()
-        elif o in ("-s", "--settings"):
-            settings = str(a)
-        elif o in ("-i", "--input-file"):
-            input_file = str(a)
-        elif o in ("-a", "--chapters"):
-            chapters.append(a)
-        elif o in ("-d", "--dryrun"):
-            dryrun = True
-        elif o in ("-c", "--copy"):
-            copy = True
-        elif o in ("-r", "--roles"):
-            roles = True
-        elif o in ("-p", "--publish"):
-            publish = True
-            print "Warning, publishing copied modules is currently not working." # TODO fix publishing
-        elif o in ("-e", "--selenium"):
-            selenium = True
-        elif o in ("-v", "--version"):
-            print VERSION
-            sys.exit()
-        else:
-            print("ERROR: unhandled option: "+o+' '+a)
-            sys.exit()
+    parser = cli.get_parser(VERSION)
+    args = parser.parse_args()
+    cli.verify_args(args)
 
-    if not settings or not input_file:
-        print("ERROR - input: must have a settings file (-s) and input_file (-i). Use -h or --help for usage")
-        sys.exit()
-    if copy and not input_file.endswith('.out') and not workgroups:
-        print("ERROR - bad input: if you are copying content (-c), you need to create workgroups (-w) as well. Use -h or --help for usage")
-        sys.exit()
-
-    chapters.sort()
-    run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish, selenium)
-
-def usage():
-    usage = """
-    This script copies a set of modules from one server to another, creating
-    workgroups if desired.
-
-    OPTIONS:
-        -h, --help
-            Show this message
-        -v, --version
-            Prints the tool's version
-        -s, --settings [filepath]
-            Settings file path
-        -w, --workgroups
-            Create workgroups for chapter titles (optional - must have chapter
-            titles if enabled)
-        -i, --input-file [filepath]
-            The input file path
-        -a, --chapters [chapters]
-            Which chapters to copy (optional)
-        -d, --dryrun
-            Steps through input processing, but does NOT create or copy any
-            content. This is used for checking input file correctness (optional)
-        -c, --copy
-            Will copy the data from source server to destination server. Without
-            this flag, placeholder modules will be created, but no content will
-            be copied over. Using this flag, input file must have a module ID
-            column filled for each module that will be copied.
-        -r, --roles
-            Use this flag is you want to update the roles according to the
-            settings (.json) file
-        -p, --publish
-            [BROKEN] Use this flag to publish the modules after copying content to the
-            destination server. This flag will only work if -c, --copy is set
-        -e, --selenium
-            Use this flag to use selenium for placeholder creation.
-
-    The input file should be in the following form:
-
-    Chapter Number,Chapter Title,Module Title,Module ID
-    5,History of Rice University,5.1 The Founding of the Institution,m53341
-
-    and the title of the file should be [the title of the book].csv
-    Alternatively, the tool can accept a .tsv (tab separated values) file.
-    The Module ID is only required if the -c, --copy flag is set (if you
-    want to copy content to another server)
-
-    Example usage:
-    ./dms_demo.py -s settings.json -i Psychology.csv -a 0 1 2 3 -wc
-
-    This will copy chapters 0, 1, 2, and 3 from the Psychology book according to
-    the csv (or tsv) file, creating workgroups for each chapter, and to the
-    server described by settings.json
-
-    Currently, the script will generate the content-copy map file if the copy
-    flag is not set. The file will be used to copy the content later with this
-    tool. Just load it in as the input file instead of a csv.
-    """
-    print '    '+VERSION
-    print usage
+    if args.chapters:
+        args.chapters.sort()
+    run(args.settings, args.input_file, args.workgroups, args.dryrun, args.copy, args.chapters, args.roles, args.publish, args.selenium)
+#     try:
+#         opts, args = getopt.getopt(sys.argv[1:], "hvs:i:a:wdcrpe", ["help", \
+#             "version", "settings=","input-file=","chapters=", "workgroups", \
+#             "dryrun", "copy", "roles", "publish", "selenium"])
+#     except getopt.GetoptError as err:
+#         print str(err)
+#         usage()
+#         sys.exit(2)
+#     workgroups = False
+#     dryrun = False
+#     copy = False
+#     roles = False
+#     publish = False
+#     selenium = False
+#     settings = None
+#     input_file = None
+#     chapters = []
+#     for o, a in opts:
+#         if o in ("-w", "--workgroups"):
+#             workgroups = True
+#         elif o in ("-h", "--help"):
+#             usage()
+#             sys.exit()
+#         elif o in ("-s", "--settings"):
+#             settings = str(a)
+#         elif o in ("-i", "--input-file"):
+#             input_file = str(a)
+#         elif o in ("-a", "--chapters"):
+#             chapters.append(a)
+#         elif o in ("-d", "--dryrun"):
+#             dryrun = True
+#         elif o in ("-c", "--copy"):
+#             copy = True
+#         elif o in ("-r", "--roles"):
+#             roles = True
+#         elif o in ("-p", "--publish"):
+#             publish = True
+#             print "Warning, publishing copied modules is currently not working." # TODO fix publishing
+#         elif o in ("-e", "--selenium"):
+#             selenium = True
+#         elif o in ("-v", "--version"):
+#             print VERSION
+#             sys.exit()
+#         else:
+#             print("ERROR: unhandled option: "+o+' '+a)
+#             sys.exit()
+#
+#     if not settings or not input_file:
+#         print("ERROR - input: must have a settings file (-s) and input_file (-i). Use -h or --help for usage")
+#         sys.exit()
+#     if copy and not input_file.endswith('.out') and not workgroups:
+#         print("ERROR - bad input: if you are copying content (-c), you need to create workgroups (-w) as well. Use -h or --help for usage")
+#         sys.exit()
+#
+#     chapters.sort()
+#     run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish, selenium)
+#
+# def usage():
+#     usage = """
+#     This script copies a set of modules from one server to another, creating
+#     workgroups if desired.
+#
+#     OPTIONS:
+#         -h, --help
+#             Show this message
+#         -v, --version
+#             Prints the tool's version
+#         -s, --settings [filepath]
+#             Settings file path
+#         -w, --workgroups
+#             Create workgroups for chapter titles (optional - must have chapter
+#             titles if enabled)
+#         -i, --input-file [filepath]
+#             The input file path
+#         -a, --chapters [chapters]
+#             Which chapters to copy (optional)
+#         -d, --dryrun
+#             Steps through input processing, but does NOT create or copy any
+#             content. This is used for checking input file correctness (optional)
+#         -c, --copy
+#             Will copy the data from source server to destination server. Without
+#             this flag, placeholder modules will be created, but no content will
+#             be copied over. Using this flag, input file must have a module ID
+#             column filled for each module that will be copied.
+#         -r, --roles
+#             Use this flag is you want to update the roles according to the
+#             settings (.json) file
+#         -p, --publish
+#             [BROKEN] Use this flag to publish the modules after copying content to the
+#             destination server. This flag will only work if -c, --copy is set
+#         -e, --selenium
+#             Use this flag to use selenium for placeholder creation.
+#
+#     The input file should be in the following form:
+#
+#     Chapter Number,Chapter Title,Module Title,Module ID
+#     5,History of Rice University,5.1 The Founding of the Institution,m53341
+#
+#     and the title of the file should be [the title of the book].csv
+#     Alternatively, the tool can accept a .tsv (tab separated values) file.
+#     The Module ID is only required if the -c, --copy flag is set (if you
+#     want to copy content to another server)
+#
+#     Example usage:
+#     ./dms_demo.py -s settings.json -i Psychology.csv -a 0 1 2 3 -wc
+#
+#     This will copy chapters 0, 1, 2, and 3 from the Psychology book according to
+#     the csv (or tsv) file, creating workgroups for each chapter, and to the
+#     server described by settings.json
+#
+#     Currently, the script will generate the content-copy map file if the copy
+#     flag is not set. The file will be used to copy the content later with this
+#     tool. Just load it in as the input file instead of a csv.
+#     """
+#     print '    '+VERSION
+#     print usage
 
 if __name__ == "__main__":
     main()

@@ -9,9 +9,10 @@ The content-copy-tool is currently in development. As of 6-8-15, the tool can cr
 - different credentials for source and destination - what will be source and destination
 - name uniqueness: workspaces & modules
 - config-ify license and url's and stuff
-- use sword to create modules
-- replace getopt with optparse
+- ?use sword to create modules
 - infrastructure for user-working directory
+- config-ify role editing info
+- look into pending role requests
 
 
 ####Install requirements
