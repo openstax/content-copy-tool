@@ -74,7 +74,7 @@ def run(settings, input_file, workgroups, dryrun, copy, chapters, roles, publish
 
     if copy:
         # run_transfer_script(source_server, credentials, output) # bash version
-        copy_content(source_server, credentials, new_modules, roles, logger, dryrun) # python version
+        copy_content(source_server, config, new_modules, roles, logger, dryrun) # python version
     if placeholders:
         print 'See created copy map: \033[92m'+output+'\033[0m'
 
@@ -185,7 +185,7 @@ def run_transfer_script(source, credentials, content_copy_map):
     """ Runs the bash transfer script """
     subprocess.call("sh transfer_user.sh -f "+source+" -u "+credentials+" \'"+content_copy_map+"\'", shell=True)
 
-def copy_content(source, credentials, content_copy_map, roles, logger, dryrun):
+def copy_content(source, config, content_copy_map, roles, logger, dryrun):
     """
     Copies content from source server to server specified by each entry in the
     content copy map.
@@ -193,7 +193,7 @@ def copy_content(source, credentials, content_copy_map, roles, logger, dryrun):
     Arguments:
       source           - the source server to copy the content from, (may or may
                          not have 'http://' prepended)
-      credentials      - the username:password for the destination server
+      config           - the configuration from the settings file
       content_copy_map - a list of triples containing an entry for each module
                          to copy, format is:
         '[destination workgroup url] [destination module ID] [source module ID]'
@@ -205,6 +205,7 @@ def copy_content(source, credentials, content_copy_map, roles, logger, dryrun):
       Nothing. It will, however, leave temporary & downloaded files for content
       that did not succeed in transfer.
     """
+    credentials = str(config['credentials'])
     for entry in content_copy_map:
         try:
             source_moduleID = entry[2].strip('\n')
@@ -219,7 +220,8 @@ def copy_content(source, credentials, content_copy_map, roles, logger, dryrun):
             files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/module_export?format=zip', source_moduleID, '.zip'))
             files.append(http.http_download_file(source+'/content/'+source_moduleID+'/latest/rhaptos-deposit-receipt', source_moduleID, '.xml'))
             if roles:
-                update_roles(source_moduleID+'.xml', credentials)
+                replace_map = cu.prepare_role_updates(source_moduleID+'.xml', config)
+                cu.update_roles(source_moduleID+'.xml', replace_map)
 
             # remove index.cnxml.html from zipfile
             dir = util.extract_zip(source_moduleID+'.zip')
@@ -231,23 +233,11 @@ def copy_content(source, credentials, content_copy_map, roles, logger, dryrun):
             res, mpart = http.http_upload_file(source_moduleID+'.xml',source_moduleID+'.zip', destination_workgroup+"/"+destination_moduleID+'/sword', credentials)
             files.append(mpart)
             # clean up temp files
-            if res.status < '400':
+            if res.status < 400:
                 for file in files:
                     os.remove(file)
             else:
                 print res.status, res.reason # TODO better handle for production
-
-def update_roles(metadatafile, credentials):
-    """
-    Updates the roles on a module. This reads in from the settings file for
-    creator, maintainer, and rightsholder configuration.
-    """
-    # TODO put the configuration details into the settings file
-    creator = ('<dcterms:creator oerdc:id=".*"', '<dcterms:creator oerdc:id="'+ credentials.split(':')[0]+'"')
-    maintainer = ('<oerdc:maintainer oerdc:id=".*"', '<oerdc:maintainer oerdc:id="'+ credentials.split(':')[0]+'"')#"OpenStaxCollege"')
-    rightsholder = ('<dcterms:rightsHolder oerdc:id=".*"', '<dcterms:rightsHolder oerdc:id="'+ credentials.split(':')[0]+'"')#"OSCRiceUniversity"')
-    replace_map = [creator, maintainer, rightsholder]
-    cu.update_roles(metadatafile, replace_map)
 
 def user_confirm(logger, source_server, destination_server, credentials, booktitle, placeholders, chapters, workgroups, copy, publish, dryrun):
     """

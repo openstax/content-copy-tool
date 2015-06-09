@@ -81,6 +81,45 @@ def get_chapters(bookmap, chapter_number_column):
             chapters.append(entry[chapter_number_column])
     return chapters
 
+def prepare_role_updates(metadatafile, config):
+    """
+    Updates the roles on a module. This reads in from the settings file for
+    creator, maintainer, and rightsholder configuration.
+    """
+    creators = list(config['creators'])
+    rightsholders = list(config['rightsholders'])
+    maintainers = list(config['maintainers'])
+
+    if len(creators) == 1:
+        creator_string = '<dcterms:creator oerdc:id="'+creators[0]+'"'
+    else:
+        creator_string = '<dcterms:creator oerdc:id="'
+        for creator in creators[:-1]:
+            creator_string += creator+'" oerdc:email="useremail2@localhost.net" oerdc:pending="False">firstname2 lastname2</dcterms:creator>\n<dcterms:creator oerdc:id="'
+        creator_string += creators[-1]+'"'
+    creator_tuple = ('<dcterms:creator oerdc:id=".*"', creator_string)
+
+    if len(maintainers) == 1:
+        maintainer_string = '<oerdc:maintainer oerdc:id="'+maintainers[0]+'"'
+    else:
+        maintainer_string = '<oerdc:maintainer oerdc:id="'
+        for maintainer in maintainers[:-1]:
+            maintainer_string += maintainer+'" oerdc:email="useremail2@localhost.net" oerdc:pending="False">firstname2 lastname2</oerdc:maintainer>\n<oerdc:maintainer oerdc:id="'
+        maintainer_string += maintainers[-1]+'"'
+    maintainer_tuple = ('<oerdc:maintainer oerdc:id=".*"', maintainer_string)
+
+    if len(rightsholders) == 1:
+        rightholder_string = '<dcterms:rightsHolder oerdc:id="'+rightsholders[0]+'"'
+    else:
+        rightsholder_string = '<dcterms:rightsHolder oerdc:id="'
+        for rightsholder in rightsholders[:-1]:
+            rightsholder_string += rightsholder+'" oerdc:email="useremail2@localhost.net" oerdc:pending="False">firstname2 lastname2</dcterms:rightsHolder>\n<dcterms:rightsHolder oerdc:id="'
+        rightsholder_string += rightsholders[-1]+'"'
+    rightsholder_tuple = ('<dcterms:rightsHolder oerdc:id=".*"', rightsholder_string)
+
+    replace_map = [creator_tuple, maintainer_tuple, rightsholder_tuple]
+    return replace_map
+
 def update_roles(file_path, replace_map):
     """
     Reads through the input file and replaces content according to the replace map
