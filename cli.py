@@ -40,6 +40,12 @@ This will copy chapters 0, 1, 2, and 3 from the Psychology book according to
 the csv (or tsv) file, creating workgroups for each chapter, and edit the roles
 according to the settings described by settings.json
 
+If the input file is not a bookmap (*.csv or *.tsv), it should be a copy map
+(*.out). The format of this file should be:
+[destination workspace url] [destination module ID] [source module ID]
+
+The title of the copy map (*.out) is not important to the tool.
+
 The script will generate the content-copy map file if the copy
 flag is not set. The file will be used to copy the content later with this
 tool. Just load it in as the input file instead of a csv.
