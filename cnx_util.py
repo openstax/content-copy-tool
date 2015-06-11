@@ -131,18 +131,3 @@ def publish_module(module_url, credentials, new=True):
         return url[beg:end_id]
     else:
         return module_url[module_url.rfind('/', 0, -1)+1:-1]
-
-    # print response2.text
-    # response = http.http_post_request(module_url, \
-    #     headers={'In-Progress': 'False'}, auth=(username, password), data={"message":"created module"})
-
-
-
-# data={"type_name":"Module", "workspace_factories:method":"Create New Item"}
-# response1 = requests.post('http://legacydev.cnx.org/GroupWorkspaces/wg2974/', auth=auth, data=data)
-# data2 = {"agree":"on", "form.button.next":"Next >>", "license":"http://creativecommons.org/licenses/by/4.0/", "form.submitted":"1"}
-# response2 = requests.post(response1.url.encode('UTF-8'), auth=auth, data=data2)
-# data3 = {"title":"test-module-6-4-again-again", "master_lanuage":"en", "language":"en", "license":"http://creativecommons.org/licenses/by/4.0/", "form.button.next":"Next >>", "form.submitted":"1"}
-# r2url = response2.url.encode('UTF-8')
-# r2url = r2url[:re.search('cc_license', r2url).start()]
-# response3 = requests.post(r2url + 'content_title', auth=auth, data=data3)

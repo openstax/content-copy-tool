@@ -1,9 +1,5 @@
 import json
 import logging
-import datetime
-import os
-import zipfile
-import shutil
 """
 This file contains some basic utility functions for the content-copy-tool.
 Functions relate to tool setup, selenium, and I/O.
@@ -48,65 +44,6 @@ def login(driver, credentials):
     signin = driver.find_element_by_name('submit')
     signin.click()
 
-def parse_input(input):
+def parse_json(input):
     """ Returns the parsed json input """
     return json.load(open(input))
-
-def encode_json(data):
-    """ Encodes the given data as json """
-    return json.dumps(data, indent=4)
-
-def write_list_to_file(datalist, booktitle):
-    """
-    Writes the data list to an output file.
-
-    The output file is named: [booktitle].out and the data list may be of
-    varying format. Each entry in the list will be written out to the file
-    where each element in each entry will be separated by a space character.
-
-    For example:
-    [['a', 'b', 'c'], ['d','e'], ['f']]
-
-    will look like:
-
-    a b c
-    d e
-    f
-
-    """
-    filename = booktitle+'.out'#str(datetime.datetime.now())+'.out'
-    file = open(filename, 'w')
-    for entry in datalist:
-        outstr = str(entry[0])
-        for item in entry[1:]:
-            outstr += ' '+str(item)
-        outstr += '\n'
-        file.write(outstr)
-    file.close()
-    return filename
-
-def record_creation(datalist, args):
-    """ Appends a tuple of the args to the datalist """
-    datalist.append(tuple(element for element in args))
-
-def extract_zip(zipfilepath):
-    # unzip_dir = zipfilepath[:zipfilepath.find('.zip')]
-    with zipfile.ZipFile(zipfilepath, "r") as zip:
-        temp_item = zip.namelist()[0]
-        dir = temp_item[:temp_item.find('/')]
-        zip.extractall()
-        # zip.infolist()
-    return dir
-
-def remove_file_from_dir(directory, file):
-    os.remove(directory+'/'+file)
-
-def zipdir(path, zipfilename):
-    zipf = zipfile.ZipFile(zipfilename, 'w')
-    # ziph is zipfile handle
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            zipf.write(os.path.join(root, file))
-    zipf.close()
-    # print 'removing ', path
-    shutil.rmtree(path)

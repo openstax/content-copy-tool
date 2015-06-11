@@ -20,6 +20,14 @@ def http_post_request(url, headers={}, auth=(), data={}):
     response = requests.post(url, headers=headers, auth=auth, data=data)
     return response
 
+def http_get_request(url, headers={}, auth=(), data={}):
+    """
+    Sends a GET request to the specified url with the specified headers, data,
+    and authentiation tuple.
+    """
+    response = requests.get(url, headers=headers, auth=auth, data=data)
+    return response
+
 def http_request(url, headers={}, data={}):
     """
     Sends an HTTP request to the specified url with the specified headers and

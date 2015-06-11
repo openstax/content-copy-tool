@@ -69,7 +69,7 @@ tool. Just load it in as the input file instead of a csv.
 """
 
 def get_parser(version):
-    parser = argparse.ArgumentParser(description=description, prog="cct.py", usage='%(prog)s -s SETTINGS -i INPUT [options]', epilog=epi, formatter_class=RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=description, prog="content-copy.py", usage='%(prog)s -s SETTINGS -i INPUT [options]', epilog=epi, formatter_class=RawDescriptionHelpFormatter)
 
     required_args = parser.add_argument_group("Required Arguments")
     required_args.add_argument("-s", "--settings", action="store", dest="settings", required=True, help="Settings file path")
@@ -79,6 +79,7 @@ def get_parser(version):
     control_args.add_argument("-w", "--workgroups", action="store_true", dest="workgroups", help="Create workgroups for chapter titles (the input data must have chapter titles if enabled).")
     control_args.add_argument("-c", "--copy", action="store_true", dest="copy", help="Use this flag to copy the data from source server to destination server. Without this flag, no content will be copied over. When using this flag, input file must have a source module ID column filled for each module that will be copied.")
     control_args.add_argument("-r", "--roles", action="store_true", dest="roles", help="Use this flag is you want to update the roles according to the settings (.json) file. This flag only works if -c, --copy flag is also set.")
+    control_args.add_argument("--accept-roles", action="store_true", dest="accept_roles", help="Use this flag to automatically accept the roles requests.")
     control_args.add_argument("-p", "--publish", action="store_true", dest="publish", help="Use this flag to publish the modules after copying content to the destination server.")
     control_args.add_argument("-a", "--chapters", action="store", dest="chapters", nargs="*", help="Which chapters to copy (optional).")
     control_args.add_argument("--dry-run", action="store_true", dest="dryrun", help="Steps through input processing, but does NOT create or copy any content. This is used for checking input file correctness (optional).")
@@ -89,6 +90,8 @@ def get_parser(version):
     return parser
 
 def verify_args(args):
+    if args.accept_roles:
+        print "WARNING: The accept roles function accepts ALL pending role requests for users listed in creators, maintainers, or rightholders."
     if args.roles and not args.copy:
         print "ERROR: using -r, --roles requires the use of -c, --copy."
         sys.exit()
