@@ -71,8 +71,6 @@ def run(settings, input_file, run_options):
         if not run_options.chapters:
             # if the user does not specify, use all of the chapters
             run_options.chapters = bookmap.get_chapters()
-    # else: # read in copy map
-    #     copier = Copier(copy_config, file=input_file)
 
     # Check before you run
     user_confirm(logger, copy_config, bookmap.booktitle, run_options)
@@ -81,8 +79,8 @@ def run(settings, input_file, run_options):
         new_modules, output = create_placeholders_objects(logger, bookmap, copy_config, run_options, content_creator)
 
     if run_options.copy: # copy content
-        copier = Copier(copy_config, object=bookmap.bookmap)
         # run_transfer_script(source_server, credentials, output) # bash version
+        copier = Copier(copy_config, object=bookmap.bookmap)
         copier.copy_content(role_config, run_options, logger)
     if run_options.accept_roles: # accept all pending role requests
         RoleUpdater().accept_roles(copy_config)
@@ -204,7 +202,6 @@ def create_placeholders_objects(logger, bookmap, copy_config, run_options, conte
     # bookmap.add_created_content(modules, run_options)
     # print bookmap.bookmap
     return None, ""
-
 
 def run_transfer_script(source, credentials, content_copy_map):
     """ Runs the bash transfer script """

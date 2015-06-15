@@ -146,26 +146,24 @@ class Bookmap:
             section_number, title = self.strip_section_numbers(row[self.config.module_title_column])
             module = CNXModule(title, section_number)
             # Read in available data from input file TODO make more extensible
-            # if row[self.config.source_module_ID_column] is not '' and row[self.config.source_module_ID_column] is not ' ':
-            try:
-                module.source_id = row[self.config.source_module_ID_column]
-            # if row[self.config.source_workgroup_column] is not '' and row[self.config.source_workgroup_column] is not ' ':
-                module.source_workspace_url = row[self.config.source_workgroup_column]
-            # if row[self.config.destination_module_ID_column] is not '' and row[self.config.destination_module_ID_column] is not ' ':
-                module.destination_id = row[self.config.destination_module_ID_column]
-            # if row[self.config.destination_workgroup_column] is not '' and row[self.config.destination_workgroup_column] is not ' ':
-                module.destination_workspace_url = row[self.config.destination_workgroup_column]
-            except KeyError, e:
-                pass # then we don't have that data. 
+            self.safe_process_column(module.source_id = row[self.config.source_module_ID_column])
+            self.safe_process_column(module.source_workspace_url = row[self.config.source_workgroup_column])
+            self.safe_process_column(module.destination_id = row[self.config.destination_module_ID_column])
+            self.safe_process_column(module.destination_workspace_url = row[self.config.destination_workgroup_column])
             bookmap.add_module(module)
         if self.workgroups:
             for chapter in self.chapters:
                 chapter_number_and_title = self.get_chapter_number_and_title(chapter)
                 chapter_title = chapter_number_and_title.split(' ', 1)[1]
                 wgtitle = self.booktitle+' - '+chapter_number_and_title+str(datetime.datetime.now())
-                # wgtitle = self.booktitle + self.get_chapter_number_and_title(chapter)+' '+str(datetime.datetime.now())
                 bookmap.add_workgroup(Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title))
         return bookmap
+
+    def safe_process_column(self, expression):
+        try:
+            exec expression
+        except KeyError, e:
+            pass # then we don't have that data, move on
 
     def parse_book_title(self, filepath):
         """
@@ -266,15 +264,10 @@ class BookmapData():
         return out
 
     def get_chapter_title(self, chapter_number):
-        titles = []
-        for workgroup in self.workgroups:
-            # print workgroup.chapter_title
-            if workgroup.chapter_number is chapter_number:
-                titles.append(workgroup.chapter_title)
-        # titles = [workgroup.chapter_title for workgroup in self.workgroups if workgroup.chapter_number is chapter_number]
+        titles = [workgroup.chapter_title for workgroup in self.workgroups if workgroup.chapter_number is chapter_number]
         if titles:
             return titles[0]
-        return "BADTITLE"
+        return ""
 
     def __str__(self):
         thestr = ""
