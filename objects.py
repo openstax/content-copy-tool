@@ -1,13 +1,12 @@
 import csv
 from tempfile import mkstemp
-import shutil
-import os
+from shutil import move, rmtree
+from os import close, remove, path, walk
 import re
 import zipfile
 import http_util as http
-# import cnx_util as cnx
 import requests
-from configurations import *
+from configuration_objects import *
 import datetime
 
 # Operation Objects
@@ -28,13 +27,11 @@ class RoleUpdater:
                     for pattern, subst in replace_map:
                         line = re.sub(pattern, subst, line)
                     new_file.write(line)
-        os.close(fh)
-        # Remove original file
-        os.remove(file_path)
-        # Move new file
-        shutil.move(abs_path, file_path)
+        close(fh)
+        remove(file_path)  # Remove original file
+        move(abs_path, file_path)  # Move new file
 
-    def prepare_role_updates(self, metadatafile, config):
+    def prepare_role_updates(self, config):
         """
         Updates the roles on a module. This reads in from the settings file for
         creator, maintainer, and rightsholder configuration.
@@ -70,7 +67,7 @@ class RoleUpdater:
         replace_map = [creator_tuple, maintainer_tuple, rightholder_tuple]
         return replace_map
 
-    def get_pending_roles_request_ids(copy_config, credentials):
+    def get_pending_roles_request_ids(self, copy_config, credentials):
         ids = []
         auth = tuple(credentials.split(':'))
         response1 = http.http_get_request(copy_config.destination_server+'/collaborations', auth=auth)
@@ -94,9 +91,9 @@ class RoleUpdater:
         users = self.get_users_of_roles()
         for user in users:
             parameters = "?"
-            for id in cnx.get_pending_roles_request_ids(copy_config, user):
+            for id in self.get_pending_roles_request_ids(copy_config, user):
                 parameters += "ids%3Alist="+id+"&"
-            parameters += 'agree=&accept=+Accept+' # rest of form.
+            parameters += 'agree=&accept=+Accept+'  # rest of form
             auth = tuple(user.split(':'))
             response = http.http_get_request(copy_config.destination_server+'/updateCollaborations'+parameters, auth=auth) # yes, it is a GET request
             if not http.verify(response):
@@ -117,10 +114,6 @@ class Bookmap:
             self.chapters = chapters
         self.workgroups = workgroups
         self.placeholders = self.read_csv(filename)
-        # if self.placeholders:
-            # self.remove_invalid_modules()
-            # if self.config.self.strip_section_numbers:
-            #     self.strip_section_numbers()
 
     def read_csv(self, filename):
         """
@@ -133,7 +126,6 @@ class Bookmap:
         TODO update docstring
         Alternatively, if the file is a .out, it will return a read version of that.
         """
-
         self.bookmap_raw = list(csv.DictReader(open(filename), delimiter=self.delimiter))
         self.bookmap = self.convert(csv.DictReader(open(filename), delimiter=self.delimiter))
         if filename.endswith('.out') or filename.startswith("OUT-"):
@@ -146,10 +138,10 @@ class Bookmap:
             section_number, title = self.strip_section_numbers(row[self.config.module_title_column])
             module = CNXModule(title, section_number)
             # Read in available data from input file TODO make more extensible
-            self.safe_process_column(module.source_id = row[self.config.source_module_ID_column])
-            self.safe_process_column(module.source_workspace_url = row[self.config.source_workgroup_column])
-            self.safe_process_column(module.destination_id = row[self.config.destination_module_ID_column])
-            self.safe_process_column(module.destination_workspace_url = row[self.config.destination_workgroup_column])
+            self.safe_process_column('module.source_id = row[self.config.source_module_ID_column]')
+            self.safe_process_column('module.source_workspace_url = row[self.config.source_workgroup_column]')
+            self.safe_process_column('module.destination_id = row[self.config.destination_module_ID_column]')
+            self.safe_process_column('module.destination_workspace_url = row[self.config.destination_workgroup_column]')
             bookmap.add_module(module)
         if self.workgroups:
             for chapter in self.chapters:
@@ -162,8 +154,8 @@ class Bookmap:
     def safe_process_column(self, expression):
         try:
             exec expression
-        except KeyError, e:
-            pass # then we don't have that data, move on
+        except KeyError:
+            pass  # then we don't have that data, move on
 
     def parse_book_title(self, filepath):
         """
@@ -213,17 +205,14 @@ class Bookmap:
                 return module[self.config.chapter_number_column]+' '+module[self.config.chapter_title_column]
         return ''
 
-    def add_created_content(self, new_modules, run_options):
-        pass
-
     def save(self):
         save_file = 'OUT-'+self.filename
-        columns = [self.config.chapter_number_column,\
-                   self.config.chapter_title_column,\
-                   self.config.module_title_column,\
-                   self.config.source_module_ID_column,\
-                   self.config.source_workgroup_column,\
-                   self.config.destination_module_ID_column,\
+        columns = [self.config.chapter_number_column,
+                   self.config.chapter_title_column,
+                   self.config.module_title_column,
+                   self.config.source_module_ID_column,
+                   self.config.source_workgroup_column,
+                   self.config.destination_module_ID_column,
                    self.config.destination_workgroup_column]
 
         with open(save_file, 'w') as csvoutput:
@@ -236,7 +225,7 @@ class Bookmap:
         return save_file
 
 
-class BookmapData():
+class BookmapData:
     def __init__(self):
         self.modules = []
         self.workgroups = []
@@ -250,7 +239,6 @@ class BookmapData():
     def output(self, module):
         out = []
         chapter_number = module.get_chapter_number()
-        # print self.get_chapter_title(chapter_number)
         out.append(chapter_number)
         out.append(self.get_chapter_title(chapter_number)) # chapter number and title for module
         module_title_entry = module.title
@@ -279,58 +267,10 @@ class BookmapData():
         return thestr
 
 
-class Copier():
-    def __init__(self, config, file=None, object=None):
+class Copier:
+    def __init__(self, config, copy_map):
         self.config = config
-        if file:
-            self.copy_map = self.read_copy_map(file)
-        elif object:
-            self.copy_map = object
-        else:
-            raise ValueError('Either file or object must be set.')
-
-    def read_copy_map(self, filename):
-        """ The copy map is a text file with lines of space separated values """
-        file = open(filename)
-        map = []
-        for line in file:
-            map.append(line.split(' '))
-        return map
-
-    @staticmethod
-    def record_creation(datalist, args):
-        """ Appends a tuple of the args to the datalist """
-        datalist.append(tuple(element for element in args))
-
-    @staticmethod
-    def write_list_to_file(datalist, booktitle):
-        """
-        Writes the data list to an output file.
-
-        The output file is named: [booktitle].out and the data list may be of
-        varying format. Each entry in the list will be written out to the file
-        where each element in each entry will be separated by a space character.
-
-        For example:
-        [['a', 'b', 'c'], ['d','e'], ['f']]
-
-        will look like:
-
-        a b c
-        d e
-        f
-
-        """
-        filename = booktitle+'.out'#str(datetime.datetime.now())+'.out'
-        file = open(filename, 'w')
-        for entry in datalist:
-            outstr = str(entry[0])
-            for item in entry[1:]:
-                outstr += ' '+str(item)
-            outstr += '\n'
-            file.write(outstr)
-        file.close()
-        return filename
+        self.copy_map = copy_map
 
     def extract_zip(self, zipfilepath):
         with zipfile.ZipFile(zipfilepath, "r") as zip:
@@ -342,18 +282,18 @@ class Copier():
     def remove_file_from_dir(self, directory, file):
         os.remove(directory+'/'+file)
 
-    def zipdir(self, path, zipfilename):
+    def zipdir(self, file_path, zipfilename):
         zipf = zipfile.ZipFile(zipfilename, 'w')
-        for root, dirs, files in os.walk(path):
+        for root, dirs, files in walk(file_path):
             for file in files:
-                zipf.write(os.path.join(root, file))
+                zipf.write(path.join(root, file))
         zipf.close()
-        shutil.rmtree(path)
+        rmtree(path)
 
     def clean_zip(self, zipfile):
         dir = self.extract_zip(zipfile)
-        os.remove(zipfile)
-        zipdir = os.path.dirname(os.path.realpath(__file__))+'/'+dir
+        remove(zipfile)
+        zipdir = path.dirname(path.realpath(__file__))+'/'+dir
         self.remove_file_from_dir(zipdir, 'index.cnxml.html')
         self.zipdir(zipdir, zipfile)
 
@@ -374,43 +314,33 @@ class Copier():
           Nothing. It will, however, leave temporary & downloaded files for content
           that did not succeed in transfer.
         """
-        for entry in self.copy_map.modules:
-            try:
-                source_moduleID = entry.source_id #entry[2].strip('\n')
-                destination_moduleID = entry.destination_id #entry[1]
-                destination_workgroup = entry.destination_workspace_url#entry[0]
-                print entry
-            except IndexError:
-                logger.error("\033[91mFailure reading content for module, skipping.\033[0m")
-                continue
+        for module in self.copy_map.modules:
             files = []
-            logger.info("Copying content for module: "+source_moduleID)
+            logger.info("Copying content for module: "+module.source_id)
             if not run_options.dryrun:
-                files.append(http.http_download_file(self.config.source_server+'/content/'+source_moduleID+'/latest/module_export?format=zip', source_moduleID, '.zip'))
-                files.append(http.http_download_file(self.config.source_server+'/content/'+source_moduleID+'/latest/rhaptos-deposit-receipt', source_moduleID, '.xml'))
+                files.append(http.http_download_file(self.config.source_server+'/content/'+module.source_id+'/latest/module_export?format=zip', module.source_id, '.zip'))
+                files.append(http.http_download_file(self.config.source_server+'/content/'+module.source_id+'/latest/rhaptos-deposit-receipt', module.source_id, '.xml'))
                 if run_options.roles:
-                    RoleUpdater().run_update_roles(source_moduleID+'.xml', role_config)
+                    RoleUpdater().run_update_roles(module.source_id+'.xml', role_config)
 
-                # remove index.cnxml.html from zipfile
-                self.clean_zip(source_moduleID+'.zip')
+                self.clean_zip(module.source_id+'.zip')  # remove index.cnxml.html from zipfile
 
-                res, mpart = http.http_upload_file(source_moduleID+'.xml',source_moduleID+'.zip', destination_workgroup+"/"+destination_moduleID+'/sword', self.config.credentials)
+                res, mpart = http.http_upload_file(module.source_id+'.xml', module.source_id+'.zip', module.destination_workspace_url+"/"+module.destination_id+'/sword', self.config.credentials)
                 files.append(mpart)
                 # clean up temp files
                 if res.status < 400:
-                    for file in files:
-                        os.remove(file)
+                    for temp_file in files:
+                        remove(temp_file)
                 else:
-                    print res.status, res.reason # TODO better handle for production
+                    print res.status, res.reason  # TODO better handle for production
 
 
 class CustomError(Exception):
     def __init__(self, arg):
-        # Set some exception infomation
         self.msg = arg
 
 
-class Workspace():
+class Workspace:
     def __init__(self, url, modules=None):
         self.url = url
         if not modules:
@@ -422,13 +352,11 @@ class Workspace():
 
 class Workgroup(Workspace):
     def __init__(self, title, chapter_title='', id='', url='', modules=None, chapter_number='0'):
+        super(url, modules)
         self.title = title
         self.chapter_title = chapter_title
         self.id = id
-        self.url = url
         self.chapter_number = chapter_number
-        if not modules:
-            self.modules = []
 
     def __str__(self):
         modules_str = ""
@@ -453,7 +381,7 @@ class CNXModule(object):
         return self.section_number+' '+self.title+' '+self.source_workspace_url+' '+self.source_id+' '+self.destination_workspace_url+' '+self.destination_id
 
 
-class ContentCreator():
+class ContentCreator:
     def __init__(self, server, credentials):
         self.server = server
         self.credentials = credentials
@@ -478,7 +406,6 @@ class ContentCreator():
                 self.create_workgroup(workgroup, server, credentials)
             except CustomError, error:
                 print error.msg
-        # return workgroup
 
     def create_workgroup(self, workgroup, server, credentials):
         """
@@ -490,10 +417,10 @@ class ContentCreator():
           the created workgroup object, FAIL on failure.
         """
         username, password = credentials.split(':')
-        data = {"title": workgroup.title, "form.button.Referece": "Create", "form.submitted": "1"}
+        data = {"title": workgroup.title, "form.button.Reference": "Create", "form.submitted": "1"}
         response = http.http_post_request(server+'/create_workgroup', auth=(username, password), data=data)
         if not http.verify(response):
-            raise CNXError(str(response.status_code)+' '+response.reason)
+            raise CustomError(str(response.status_code)+' '+response.reason)
 
         # extract workgroup ID
         url = response.url.encode('UTF-8')
@@ -501,7 +428,6 @@ class ContentCreator():
         id_end = url.find('/', id_start)
         workgroup.id = url[id_start:id_end]
         workgroup.url = url[:id_end]
-        # return Workgroup(title, chapter_number=chapter_number, chapter_title=chapter_title, id=workgroup_id, url=url[:id_end])
 
     def run_create_and_publish_module(self, module, server, credentials, logger, workgroup_url='Members/', dryrun=False):
         """
@@ -527,14 +453,11 @@ class ContentCreator():
             workgroup_url = server+'/'+workgroup_url
             info_str += " in Personal workspace ("+workgroup_url+")"
         logger.info(info_str)
-        # module = CNXModule('m00000', title, "")
         if not dryrun:
             temp_url = self.create_module(module.title, credentials, workgroup_url)
             res, url = self.publish_module(temp_url, credentials)
             module.destination_workspace_url = workgroup_url
             module.destination_id = res
-            # module = CNXModule(res, title, url)
-        # return module
 
     def create_module(self, title, credentials, workspace_url):
         """
@@ -545,9 +468,9 @@ class ContentCreator():
         username, password = credentials.split(':')
         auth = username, password
 
-        data1 = {"type_name":"Module", "workspace_factories:method":"Create New Item"}
-        data2 = {"agree":"on", "form.button.next":"Next >>", "license":"http://creativecommons.org/licenses/by/4.0/", "form.submitted":"1"}
-        data3 = {"title":title, "master_lanuage":"en", "language":"en", "license":"http://creativecommons.org/licenses/by/4.0/", "form.button.next":"Next >>", "form.submitted":"1"}
+        data1 = {"type_name": "Module", "workspace_factories:method": "Create New Item"}
+        data2 = {"agree": "on", "form.button.next": "Next >>", "license": "http://creativecommons.org/licenses/by/4.0/", "form.submitted": "1"}
+        data3 = {"title": title, "master_language": "en", "language": "en", "license": "http://creativecommons.org/licenses/by/4.0/", "form.button.next": "Next >>", "form.submitted": "1"}
 
         response1 = http.http_post_request(workspace_url, auth=auth, data=data1)
         if not http.verify(response1):
@@ -570,22 +493,20 @@ class ContentCreator():
           The published module ID, FAIL on failure.
         """
         username, password = credentials.split(':')
-        data1 = {"message":"created module", "form.button.publish":"Publish", "form.submitted":"1"}
+        data1 = {"message": "created module", "form.button.publish": "Publish", "form.submitted": "1"}
         response1 = http.http_post_request(module_url+'module_publish_description', auth=(username, password), data=data1)
-        # print response1.status_code, response1.reason
         if not http.verify(response1):
             raise CustomError('publish module request 1: '+response1.status_code+' '+response1.reason)
         if new:
-            data2 = {"message":"created module", "publish":"Yes, Publish"}
+            data2 = {"message": "created module", "publish": "Yes, Publish"}
             response2 = http.http_post_request(module_url+'publishContent', auth=(username, password), data=data2)
-            # print response2.status_code, response2.reason
             if not http.verify(response2):
                 raise CustomError('publish module request 1: '+response1.status_code+' '+response1.reason)
 
             # extract module ID
             url = response2.url.encode('UTF-8')
-            end_id=re.search('/content_published',url).start()
-            beg = url.rfind('/',0,end_id)+1
+            end_id = re.search('/content_published',url).start()
+            beg = url.rfind('/', 0, end_id)+1
             return url[beg:end_id], url
         else:
             return module_url[module_url.rfind('/', 0, -1)+1:-1], module_url

@@ -7,7 +7,6 @@ class CopyConfiguration:
 
 
 class BookmapConfiguration:
-    """ Object that holds the bookmap configuration: the column names """
     def __init__(self, chapter_number_column,
                        chapter_title_column,
                        module_title_column,

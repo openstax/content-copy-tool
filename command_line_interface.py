@@ -1,5 +1,5 @@
 import argparse
-from argparse import RawTextHelpFormatter, RawDescriptionHelpFormatter
+from argparse import RawDescriptionHelpFormatter
 import sys
 
 description="""The Content-Copy-Tool is configurable. The first way of configuring it
