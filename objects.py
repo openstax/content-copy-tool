@@ -5,52 +5,10 @@ import os
 import re
 import zipfile
 import http_util as http
-import cnx_util as cnx
-
-# Configuration Objects
-class CopyConfiguration:
-    def __init__(self, source_server, destination_server, credentials):
-        self.source_server = source_server
-        self.destination_server = destination_server
-        self.credentials = credentials
-
-
-class BookmapConfiguration:
-    """ Object that holds the bookmap configuration: the column names """
-    def __init__(self, chapter_number_column, chapter_title_column, module_title_column, module_ID_column):
-        self.chapter_number_column = chapter_number_column
-        self.chapter_title_column = chapter_title_column
-        self.module_title_column = module_title_column
-        self.module_ID_column = module_ID_column
-
-
-class RunOptions:
-    def __init__(self, workgroups, copy, roles, accept_roles, publish, chapters, dryrun, selenium=False):
-        self.workgroups = workgroups
-        self.copy = copy
-        self.roles = roles
-        self.accept_roles = accept_roles
-        self.publish = publish
-        self.chapters = chapters
-        self.dryrun = dryrun
-        self.selenium = selenium
-
-class RoleConfiguration:
-    def __init__(self, creators, maintainers, rightholders):
-        self.creators = creators
-        self.maintainers = maintainers
-        self.rightholders = rightholders
-
-
-class RunConfiguration:
-    def __init__(self, settings, input, logger, run_options, copy_config, bookmap_config):
-        self.settings = settings
-        self.input_file = input
-        self.logger = logger
-        self.run_options = run_options
-        self.copy_config = copy_config
-        self.bookmap_config = bookmap_config
-
+# import cnx_util as cnx
+import requests
+from configurations import *
+import datetime
 
 # Operation Objects
 class RoleUpdater:
@@ -146,14 +104,23 @@ class RoleUpdater:
 
 
 class Bookmap:
-    def __init__(self, filename, bookmap_config):
+    def __init__(self, filename, bookmap_config, chapters, workgroups):
         self.filename = filename
         self.config = bookmap_config
-        self.placeholders = self.read_csv(filename)
         self.booktitle = self.parse_book_title(filename)
-        if self.placeholders:
-            self.remove_invalid_modules()
-            self.strip_section_numbers()
+        self.delimiter = ','
+        if filename.endswith('.tsv'):
+            self.delimiter = '\t'
+        if not chapters:
+            self.chapters = self.get_chapters()
+        else:
+            self.chapters = chapters
+        self.workgroups = workgroups
+        self.placeholders = self.read_csv(filename)
+        # if self.placeholders:
+            # self.remove_invalid_modules()
+            # if self.config.self.strip_section_numbers:
+            #     self.strip_section_numbers()
 
     def read_csv(self, filename):
         """
@@ -163,15 +130,42 @@ class Bookmap:
         Each entry is a dictionary that maps the column title (first line in csv)
         to the row value (corresponding column in that row).
 
-        TODO update docstring Alternatively, if the file is a .out, it will return a read version of that.
+        TODO update docstring
+        Alternatively, if the file is a .out, it will return a read version of that.
         """
-        if filename.endswith('.out'):
+
+        self.bookmap_raw = list(csv.DictReader(open(filename), delimiter=self.delimiter))
+        self.bookmap = self.convert(csv.DictReader(open(filename), delimiter=self.delimiter))
+        if filename.endswith('.out') or filename.startswith("OUT-"):
             return False
-        delimiter = ','
-        if filename.endswith('.tsv'):
-            delimiter = '\t'
-        self.bookmap = list(csv.DictReader(open(filename), delimiter=delimiter))
         return True
+
+    def convert(self, reader):
+        bookmap = BookmapData()
+        for row in reader:
+            section_number, title = self.strip_section_numbers(row[self.config.module_title_column])
+            module = CNXModule(title, section_number)
+            # Read in available data from input file TODO make more extensible
+            # if row[self.config.source_module_ID_column] is not '' and row[self.config.source_module_ID_column] is not ' ':
+            try:
+                module.source_id = row[self.config.source_module_ID_column]
+            # if row[self.config.source_workgroup_column] is not '' and row[self.config.source_workgroup_column] is not ' ':
+                module.source_workspace_url = row[self.config.source_workgroup_column]
+            # if row[self.config.destination_module_ID_column] is not '' and row[self.config.destination_module_ID_column] is not ' ':
+                module.destination_id = row[self.config.destination_module_ID_column]
+            # if row[self.config.destination_workgroup_column] is not '' and row[self.config.destination_workgroup_column] is not ' ':
+                module.destination_workspace_url = row[self.config.destination_workgroup_column]
+            except KeyError, e:
+                pass # then we don't have that data. 
+            bookmap.add_module(module)
+        if self.workgroups:
+            for chapter in self.chapters:
+                chapter_number_and_title = self.get_chapter_number_and_title(chapter)
+                chapter_title = chapter_number_and_title.split(' ', 1)[1]
+                wgtitle = self.booktitle+' - '+chapter_number_and_title+str(datetime.datetime.now())
+                # wgtitle = self.booktitle + self.get_chapter_number_and_title(chapter)+' '+str(datetime.datetime.now())
+                bookmap.add_workgroup(Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title))
+        return bookmap
 
     def parse_book_title(self, filepath):
         """
@@ -188,22 +182,21 @@ class Bookmap:
         else:
             return filepath[filepath.rfind('/')+1:]
 
-
     def get_chapters(self):
         """ Returns a list of all the valid chapters in the bookmap """
         chapters = []
-        for entry in self.bookmap:
+        for entry in csv.DictReader(open(self.filename), delimiter=self.delimiter):
             if not entry[self.config.chapter_number_column] in chapters:
                 chapters.append(entry[self.config.chapter_number_column])
         return chapters
 
-    def strip_section_numbers(self):
+    def strip_section_numbers(self, title):
         """ Strips the section numbers from the module title """
-        for module in self.bookmap:
-            if re.match('[0-9]', module[self.config.module_title_column]):
-                with_num = module[self.config.module_title_column]
-                without_num = with_num[str.index(with_num, ' ')+1:]
-                module[self.config.module_title_column] = without_num
+        if re.match('[0-9]', title):
+            num = title[:str.index(title, ' '):]
+            title = title[str.index(title, ' ')+1:]
+            return num, title
+        return '', title
 
     def remove_invalid_modules(self):
         """ Removes invalid modules """
@@ -217,13 +210,83 @@ class Bookmap:
 
     def get_chapter_number_and_title(self, chapter_num):
         """ Gets the title of the provided chapter number in the provide bookmap """
-        for module in self.bookmap:
+        for module in list(self.bookmap_raw):
             if module[self.config.chapter_number_column] is str(chapter_num):
                 return module[self.config.chapter_number_column]+' '+module[self.config.chapter_title_column]
         return ''
 
+    def add_created_content(self, new_modules, run_options):
+        pass
 
-class Copier:
+    def save(self):
+        save_file = 'OUT-'+self.filename
+        columns = [self.config.chapter_number_column,\
+                   self.config.chapter_title_column,\
+                   self.config.module_title_column,\
+                   self.config.source_module_ID_column,\
+                   self.config.source_workgroup_column,\
+                   self.config.destination_module_ID_column,\
+                   self.config.destination_workgroup_column]
+
+        with open(save_file, 'w') as csvoutput:
+            writer = csv.writer(csvoutput, lineterminator='\n', delimiter=self.delimiter)
+            all = []
+            all.append(columns)
+            for module in self.bookmap.modules:
+                all.append(self.bookmap.output(module))
+            writer.writerows(all)
+        return save_file
+
+
+class BookmapData():
+    def __init__(self):
+        self.modules = []
+        self.workgroups = []
+
+    def add_module(self, module):
+        self.modules.append(module)
+
+    def add_workgroup(self, workgroup):
+        self.workgroups.append(workgroup)
+
+    def output(self, module):
+        out = []
+        chapter_number = module.get_chapter_number()
+        # print self.get_chapter_title(chapter_number)
+        out.append(chapter_number)
+        out.append(self.get_chapter_title(chapter_number)) # chapter number and title for module
+        module_title_entry = module.title
+        if module.section_number:
+            module_title_entry = module.section_number+' '+module_title_entry
+        out.append(module_title_entry)
+        out.append(module.source_id)
+        out.append(module.source_workspace_url)
+        out.append(module.destination_id)
+        out.append(module.destination_workspace_url)
+        return out
+
+    def get_chapter_title(self, chapter_number):
+        titles = []
+        for workgroup in self.workgroups:
+            # print workgroup.chapter_title
+            if workgroup.chapter_number is chapter_number:
+                titles.append(workgroup.chapter_title)
+        # titles = [workgroup.chapter_title for workgroup in self.workgroups if workgroup.chapter_number is chapter_number]
+        if titles:
+            return titles[0]
+        return "BADTITLE"
+
+    def __str__(self):
+        thestr = ""
+        for workgroup in self.workgroups:
+            thestr += str(workgroup)
+        thestr += '\n'
+        for module in self.modules:
+            thestr += str(module)+'\n'
+        return thestr
+
+
+class Copier():
     def __init__(self, config, file=None, object=None):
         self.config = config
         if file:
@@ -288,12 +351,10 @@ class Copier:
 
     def zipdir(self, path, zipfilename):
         zipf = zipfile.ZipFile(zipfilename, 'w')
-        # ziph is zipfile handle
         for root, dirs, files in os.walk(path):
             for file in files:
                 zipf.write(os.path.join(root, file))
         zipf.close()
-        # print 'removing ', path
         shutil.rmtree(path)
 
     def clean_zip(self, zipfile):
@@ -320,11 +381,12 @@ class Copier:
           Nothing. It will, however, leave temporary & downloaded files for content
           that did not succeed in transfer.
         """
-        for entry in self.copy_map:
+        for entry in self.copy_map.modules:
             try:
-                source_moduleID = entry[2].strip('\n')
-                destination_moduleID = entry[1]
-                destination_workgroup = entry[0]
+                source_moduleID = entry.source_id #entry[2].strip('\n')
+                destination_moduleID = entry.destination_id #entry[1]
+                destination_workgroup = entry.destination_workspace_url#entry[0]
+                print entry
             except IndexError:
                 logger.error("\033[91mFailure reading content for module, skipping.\033[0m")
                 continue
@@ -347,3 +409,190 @@ class Copier:
                         os.remove(file)
                 else:
                     print res.status, res.reason # TODO better handle for production
+
+
+class CustomError(Exception):
+    def __init__(self, arg):
+        # Set some exception infomation
+        self.msg = arg
+
+
+class Workspace():
+    def __init__(self, url, modules=None):
+        self.url = url
+        if not modules:
+            self.modules = []
+
+    def add_module(self, module):
+        self.modules.append(module)
+
+
+class Workgroup(Workspace):
+    def __init__(self, title, chapter_title='', id='', url='', modules=None, chapter_number='0'):
+        self.title = title
+        self.chapter_title = chapter_title
+        self.id = id
+        self.url = url
+        self.chapter_number = chapter_number
+        if not modules:
+            self.modules = []
+
+    def __str__(self):
+        modules_str = ""
+        for module in self.modules:
+            modules_str += '\n\t'+str(module)
+        return self.id+' '+self.title+' '+self.chapter_number+' '+self.chapter_title+' '+self.url+' '+modules_str
+
+
+class CNXModule(object):
+    def __init__(self, title, section_number='', source_workspace_url='', source_id='', destination_workspace_url='', destination_id=''):
+        self.title = title
+        self.section_number = section_number
+        self.source_workspace_url = source_workspace_url
+        self.source_id = source_id
+        self.destination_workspace_url = destination_workspace_url
+        self.destination_id = destination_id
+
+    def get_chapter_number(self):
+        return self.section_number.split('.')[0]
+
+    def __str__(self):
+        return self.section_number+' '+self.title+' '+self.source_workspace_url+' '+self.source_id+' '+self.destination_workspace_url+' '+self.destination_id
+
+
+class ContentCreator():
+    def __init__(self, server, credentials):
+        self.server = server
+        self.credentials = credentials
+
+    def run_create_workgroup(self, workgroup, server, credentials, logger, dryrun=False):
+        """
+        Uses HTTP requests to create a workgroup with the given information
+
+        Arguments:
+          title       - the title of the workgroup
+          server      - the server to create the workgroup on
+          credentials - the username:password to use when creating the workgroup
+          dryrun      - (optional) a flag to step through the setup and teardown
+                        without actually creating the workgroup
+
+        Returns:
+          the ID of the created workgroup object, id='wg00000' if dryrun
+        """
+        logger.info("Creating workgroup: " + workgroup.title + " on " + server)
+        if not dryrun:
+            try:
+                self.create_workgroup(workgroup, server, credentials)
+            except CustomError, error:
+                print error.msg
+        # return workgroup
+
+    def create_workgroup(self, workgroup, server, credentials):
+        """
+        TODO update docstring
+        Creates a workgroup with [title] on [server] with [credentials] using
+        HTTP requests.
+
+        Returns:
+          the created workgroup object, FAIL on failure.
+        """
+        username, password = credentials.split(':')
+        data = {"title": workgroup.title, "form.button.Referece": "Create", "form.submitted": "1"}
+        response = http.http_post_request(server+'/create_workgroup', auth=(username, password), data=data)
+        if not http.verify(response):
+            raise CNXError(str(response.status_code)+' '+response.reason)
+
+        # extract workgroup ID
+        url = response.url.encode('UTF-8')
+        id_start = re.search('GroupWorkspaces/', url).end()
+        id_end = url.find('/', id_start)
+        workgroup.id = url[id_start:id_end]
+        workgroup.url = url[:id_end]
+        # return Workgroup(title, chapter_number=chapter_number, chapter_title=chapter_title, id=workgroup_id, url=url[:id_end])
+
+    def run_create_and_publish_module(self, module, server, credentials, logger, workgroup_url='Members/', dryrun=False):
+        """
+        Uses HTTP requests to create and publish a module with the given information
+        TODO update docstring
+        Arguments:
+          title         - the title of the module
+          server        - the server to create the module on
+          credentials   - the username:password to use when creating the module
+          workgroup_url - (optional) the workgroup to create the module in,
+                          will create it outside of workgroups if not specified
+          dryrun        - (optional) a flag to step through the setup and
+                          teardown without actually creating the module
+
+        Returns:
+          the ID of the created module, 'm00000' if dryrun, 'FAIL' on failure
+        """
+        info_str = "Creating module: "+module.title+" on "+server
+        if workgroup_url is not 'Members/':
+            info_str += " in workgroup: "+ workgroup_url
+        else:
+            workgroup_url += credentials.split(':')[0]
+            workgroup_url = server+'/'+workgroup_url
+            info_str += " in Personal workspace ("+workgroup_url+")"
+        logger.info(info_str)
+        # module = CNXModule('m00000', title, "")
+        if not dryrun:
+            temp_url = self.create_module(module.title, credentials, workgroup_url)
+            res, url = self.publish_module(temp_url, credentials)
+            module.destination_workspace_url = workgroup_url
+            module.destination_id = res
+            # module = CNXModule(res, title, url)
+        # return module
+
+    def create_module(self, title, credentials, workspace_url):
+        """
+        Creates a module with [title] in [workspace_url] with [credentials].
+
+        Returns the url of the created module, Fail on failure.
+        """
+        username, password = credentials.split(':')
+        auth = username, password
+
+        data1 = {"type_name":"Module", "workspace_factories:method":"Create New Item"}
+        data2 = {"agree":"on", "form.button.next":"Next >>", "license":"http://creativecommons.org/licenses/by/4.0/", "form.submitted":"1"}
+        data3 = {"title":title, "master_lanuage":"en", "language":"en", "license":"http://creativecommons.org/licenses/by/4.0/", "form.button.next":"Next >>", "form.submitted":"1"}
+
+        response1 = http.http_post_request(workspace_url, auth=auth, data=data1)
+        if not http.verify(response1):
+            raise CustomError('create_module request 1: '+response1.status_code+' '+response1.reason)
+        response2 = http.http_post_request(response1.url.encode('UTF-8'), auth=auth, data=data2)
+        if not http.verify(response2):
+            raise CustomError('create_module request 2: '+response2.status_code+' '+response2.reason)
+        r2url = response2.url.encode('UTF-8')
+        create_url = r2url[:re.search('cc_license', r2url).start()]
+        response3 = http.http_post_request(create_url + 'content_title', auth=auth, data=data3)
+        if not http.verify(response3):
+            raise CustomError('create_module request 3: '+response3.status_code+' '+response3.reason)
+        return create_url
+
+    def publish_module(self, module_url, credentials, new=True):
+        """
+        Publishes the module at [module_url] with [credentials] using HTTP requests.
+
+        Returns:
+          The published module ID, FAIL on failure.
+        """
+        username, password = credentials.split(':')
+        data1 = {"message":"created module", "form.button.publish":"Publish", "form.submitted":"1"}
+        response1 = http.http_post_request(module_url+'module_publish_description', auth=(username, password), data=data1)
+        # print response1.status_code, response1.reason
+        if not http.verify(response1):
+            raise CustomError('publish module request 1: '+response1.status_code+' '+response1.reason)
+        if new:
+            data2 = {"message":"created module", "publish":"Yes, Publish"}
+            response2 = http.http_post_request(module_url+'publishContent', auth=(username, password), data=data2)
+            # print response2.status_code, response2.reason
+            if not http.verify(response2):
+                raise CustomError('publish module request 1: '+response1.status_code+' '+response1.reason)
+
+            # extract module ID
+            url = response2.url.encode('UTF-8')
+            end_id=re.search('/content_published',url).start()
+            beg = url.rfind('/',0,end_id)+1
+            return url[beg:end_id], url
+        else:
+            return module_url[module_url.rfind('/', 0, -1)+1:-1], module_url
