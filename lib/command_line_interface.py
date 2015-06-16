@@ -2,7 +2,7 @@ import argparse
 from argparse import RawDescriptionHelpFormatter
 import sys
 
-description="""The Content-Copy-Tool is configurable. The first way of configuring it
+description = """The Content-Copy-Tool is configurable. The first way of configuring it
 is through the settings file (see usage below). The settings file must be saved
 as a '*.json' file. This file contains settings such as source and destination
 servers, user credentials, and some other potentially dynamic information.
@@ -57,7 +57,7 @@ tool. Just load it in as the input file instead of a csv.
     This flag will work if the input file is a '*.csv', '*.tsv', or '*.out'. It
     requires that the input file have source module IDs (to copy from).
 -r, --roles
-    This flag only works in conjuction with the -c, --copy flag.
+    This flag only works in conjunction with the -c, --copy flag.
 -p, --publish
     This flag will only work with '*.csv' and '*.tsv' input files if the -c,
     --copy flag is set. Alternatively, if the input file is a '*.out', this flag
@@ -83,7 +83,7 @@ def get_parser(version):
     control_args.add_argument("-p", "--publish", action="store_true", dest="publish", help="Use this flag to publish the modules after copying content to the destination server.")
     control_args.add_argument("-a", "--chapters", action="store", dest="chapters", nargs="*", help="Which chapters to copy (optional).")
     control_args.add_argument("--dry-run", action="store_true", dest="dryrun", help="Steps through input processing, but does NOT create or copy any content. This is used for checking input file correctness (optional).")
-    control_args.add_argument("-e", "--selenium", action="store_true", dest="selenium", help="Use this flag to use selenium for placeholder creation.")
+    control_args.add_argument("--selenium", action="store_true", dest="selenium", help="Use this flag to use selenium for placeholder creation.")
 
     parser.add_argument("--version", action="version", version=version, help="Prints the tool's version")
 
@@ -91,10 +91,7 @@ def get_parser(version):
 
 def verify_args(args):
     if args.accept_roles:
-        print "WARNING: The accept roles function accepts ALL pending role requests for users listed in creators, maintainers, or rightholders."
+        print "\033[91mWARNING\033[0m: The accept roles function accepts ALL pending role requests for users listed in creators, maintainers, or rightholders."
     if args.roles and not args.copy:
         print "ERROR: using -r, --roles requires the use of -c, --copy."
-        sys.exit()
-    if args.publish and (args.input_file.endswith(".csv") or args.input_file.endswith(".tsv")) and not args.copy:
-        print "ERROR: can only publish content from '*.csv' or '*.tsv' when using -c, --copy."
         sys.exit()

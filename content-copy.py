@@ -1,15 +1,21 @@
 #!/usr/bin/python
 import sys
-import util as util
-import command_line_interface as cli
-from objects import *
-from configuration_objects import *
+import re as regex
+
+import lib.util as util
+import lib.command_line_interface as cli
+from lib.operation_objects import *
+from lib.bookmap import *
+from lib.role_updates import *
+
 """
 This script is the main script of the content-copy-tool, it requires the
 presence of the following utility files to execute properly.
 
 configuration_objects.py
-objects.py
+operation_objects.py
+bookmap.py
+role_updates.py
 util.py
 http_util.py
 command_line_interface.py
@@ -37,16 +43,18 @@ def run(settings, input_file, run_options):
     source_server = str(config['source_server'])
     destination_server = str(config['destination_server'])
     # ensure server addresses have 'http[s]://' prepended
-    if not re.match('https?://', source_server):
+    if not regex.match('https?://', source_server):
         source_server = 'http://' + source_server
-    if not re.match('https?://', destination_server):
+    if not regex.match('https?://', destination_server):
         destination_server = 'http://' + destination_server
     credentials = str(config['credentials'])
     copy_config = CopyConfiguration(source_server, destination_server, credentials)
-    copier = Copier(copy_config, object=bookmap.bookmap)
+    copier = Copier(copy_config, bookmap.bookmap, str(config['path_to_tool']))
 
     # Role Configuration
-    role_config = RoleConfiguration(list(config['creators']), list(config['maintainers']), list(config['rightholders']))
+    role_config = RoleConfiguration(list(config['creators']),
+                                    list(config['maintainers']),
+                                    list(config['rightholders']), config, credentials)
 
     # Content_creator
     content_creator = ContentCreator(destination_server, credentials)
@@ -54,28 +62,23 @@ def run(settings, input_file, run_options):
     logfile = config['logfile']
     logger = util.init_logger(logfile)
 
-    logger.info("-------- Summary ---------------------------------------")
-    if run_options.placeholders:  # confirm proper input
-        if run_options.copy:  # confirm each entry in the bookmap has a source module ID.
-            for module in bookmap.bookmap.modules:
-                if module.source_id is '' or module.source_id is ' ':
-                    logger.warn("\033[91mInput file has missing module IDs, content-copy map may be incomplete.\033[0m")
-        if not run_options.chapterc:  # if the user does not specify, use all of the chapters
-            run_options.chapters = bookmap.get_chapters()
+    user_confirm(logger, copy_config, bookmap, run_options)  # Check before you run
 
-    user_confirm(logger, copy_config, bookmap.booktitle, run_options)  # Check before you run
+    try:
+        if run_options.placeholders:  # create placeholders
+            create_placeholders(logger, bookmap, copy_config, run_options, content_creator)
+        if run_options.copy:  # copy content
+            copier.copy_content(role_config, run_options, logger)
+        if run_options.accept_roles:  # accept all pending role requests
+            RoleUpdater(role_config).accept_roles(copy_config)
+        if run_options.publish:  # publish the modules
+            publish_modules_post_copy(copier, content_creator, run_options, credentials, logger)
+    except CustomError, e:
+        logger.error(e.msg)
 
-    if run_options.placeholders:  # create placeholders
-        create_placeholders(logger, bookmap, copy_config, run_options, content_creator)
-    if run_options.copy:  # copy content
-        copier.copy_content(role_config, run_options, logger)
-    if run_options.accept_roles:  # accept all pending role requests
-        RoleUpdater().accept_roles(copy_config)
-    if run_options.publish:  # publish the modules
-        publish_modules_post_copy(copier, content_creator, run_options, credentials, logger)
-
-    output = bookmap.save()  # save output data
-    logger.info("See output: \033[95m"+output+"\033[0m")
+    if run_options.placeholders:
+        output = bookmap.save()  # save output data
+        logger.info("See output: \033[95m"+output+"\033[0m")
     logger.info("------- Process completed --------")
 
 def create_placeholders(logger, bookmap, copy_config, run_options, content_creator):
@@ -93,7 +96,7 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
 
     logger.info("-------- Creating modules -------------------------------")
     for module in bookmap.bookmap.modules:
-        if module.get_chapter_number() in run_options.chapters:
+        if module.get_chapter_number() in bookmap.chapters:
             workgroup_url = 'Members/'
             if run_options.workgroups:
                 workgroup_url = chapter_to_workgroup[module.get_chapter_number()].url
@@ -110,19 +113,24 @@ def publish_modules_post_copy(copier, content_creator, run_options, credentials,
         if not run_options.dryrun:
             content_creator.publish_module(module.destination_workspace_url+'/'+module.destination_id+'/', credentials, False)
 
-def user_confirm(logger, copy_config, booktitle, run_options):
+def user_confirm(logger, copy_config, bookmap, run_options):
     """
     Prints a summary of the settings for the process that is about to run and
     asks for user confirmation.
     """
+    logger.info("-------- Summary ---------------------------------------")
+    if run_options.copy:  # confirm each entry in the bookmap has a source module ID.
+        for module in bookmap.bookmap.modules:
+            if module.source_id is '' or module.source_id is ' ':
+                logger.warn("\033[91mInput file has missing module IDs, content-copy map may be incomplete.\033[0m")
     logger.info("Source: \033[95m"+copy_config.source_server+"\033[0m - Content will be copied from this server")
     logger.info("Destination: \033[95m"+copy_config.destination_server+"\033[0m - Content will be created on this server")
     if PRODUCTION:
         logger.info("User: \033[95m"+copy_config.credentials.split(':')[0]+"\033[0m")
     else:
         logger.info("Credentials: \033[95m"+copy_config.credentials+"\033[0m")
-    logger.info("Content: \033[95m"+booktitle+"\033[0m")
-    logger.info("Chapters: \033[95m"+str(run_options.chapters)+"\033[0m")
+    logger.info("Content: \033[95m"+bookmap.booktitle+"\033[0m")
+    logger.info("Chapters: \033[95m"+str(bookmap.chapters)+"\033[0m")
     logger.info("Create placeholders?: \033[95m"+str(run_options.placeholders)+"\033[0m")
     if run_options.placeholders:
         logger.info("Create workgroups? \033[95m"+str(run_options.workgroups)+"\033[0m")

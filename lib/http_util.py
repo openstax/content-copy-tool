@@ -1,12 +1,14 @@
 import urllib2
 import urllib
 import httplib
-import requests
-import makemultipart as multi
-import re
 from base64 import b64encode
 from tempfile import mkstemp
 from os import close
+
+import requests
+
+import makemultipart as multi
+
 """
 This file contains some utility functions for the content-copy-tool that relate
 to http requests.
@@ -15,7 +17,7 @@ to http requests.
 def http_post_request(url, headers={}, auth=(), data={}):
     """
     Sends a POST request to the specified url with the specified headers, data,
-    and authentiation tuple.
+    and authentication tuple.
     """
     response = requests.post(url, headers=headers, auth=auth, data=data)
     return response
@@ -23,7 +25,7 @@ def http_post_request(url, headers={}, auth=(), data={}):
 def http_get_request(url, headers={}, auth=(), data={}):
     """
     Sends a GET request to the specified url with the specified headers, data,
-    and authentiation tuple.
+    and authentication tuple.
     """
     response = requests.get(url, headers=headers, auth=auth, data=data)
     return response
@@ -48,12 +50,10 @@ def http_request(url, headers={}, data={}):
 
 def http_download_file(url, filename, extension):
     """ Downloads the file at [url] and saves it as [filename.extension]. """
-    # fh, abs_path = mkstemp(extension, filename)
-    try: urllib.urlretrieve(url, filename+extension)
+    try:
+        urllib.urlretrieve(url, filename+extension)
     except urllib.error.URLError as e:
         print(e.reason)
-    # close(fh)
-    # print abs_path
     return filename+extension
 
 def extract_boundary(filename):
@@ -83,7 +83,6 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
     response = connection.getresponse()
     close(fh)
     return response, abs_path
-    # print response.status, response.reason
 
 def verify(response):
     """ Returns True if the response code is < 400, False otherwise. """
@@ -92,7 +91,3 @@ def verify(response):
     else:
         print response.status_code, response.reason
         return False
-
-# http_download_file('http://legacy.cnx.org/content/m10672/latest/module_export?format=zip', 'example.zip')
-# http_download_file('http://legacy.cnx.org/content/m10672/latest/rhaptos-deposit-receipt', 'example.xml')
-# http_upload_file('example.xml', 'example.zip', 'http://legacydev.cnx.org/GroupWorkspaces/wg2965/m53456/sword', 'user2:user2')

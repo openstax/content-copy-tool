@@ -47,3 +47,8 @@ def login(driver, credentials):
 def parse_json(input):
     """ Returns the parsed json input """
     return json.load(open(input))
+
+
+class CustomError(Exception):
+    def __init__(self, arg):
+        self.msg = arg
