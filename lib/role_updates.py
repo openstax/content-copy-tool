@@ -78,7 +78,7 @@ class RoleUpdater:
         auth = tuple(credentials.split(':'))
         response1 = http.http_get_request(copy_config.destination_server+'/collaborations', auth=auth)
         if not http.verify(response1):
-            raise CustomError("FAILURE "+response1.status_code+" "+response1.reason)
+            raise CustomError("FAILURE getting pending role requests: "+str(response1.status_code)+" "+response1.reason)
         else:
             html = response1.text
             pattern = regex.compile('name="ids:list" value=".*"')

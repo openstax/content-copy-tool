@@ -128,7 +128,7 @@ def user_confirm(logger, copy_config, bookmap, run_options):
     else:
         logger.info("Credentials: \033[95m"+copy_config.credentials+"\033[0m")
     logger.info("Content: \033[95m"+bookmap.booktitle+"\033[0m")
-    logger.info("Chapters: \033[95m"+str(bookmap.chapters)+"\033[0m")
+    logger.info("Chapters: \033[95m"+', '.join(bookmap.chapters)+"\033[0m")
     logger.info("Create placeholders?: \033[95m"+str(run_options.modules or run_options.workgroups)+"\033[0m")
     if run_options.modules:
         logger.info("Create workgroups? \033[95m"+str(run_options.workgroups)+"\033[0m")
