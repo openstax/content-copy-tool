@@ -1,13 +1,15 @@
 # This is a Selenium script that creates a module.
 
-import unittest
-from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 import datetime
-import json
 import re
+
+from selenium import webdriver
+
 import util as util
 
+##################
+# NOT IN USE
+##################
 class ModuleCreator():
     '''
     This creates a module on the specified server with the specified information
