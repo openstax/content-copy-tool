@@ -22,19 +22,22 @@ class BookmapConfiguration:
             self.strip_section_numbers = True
 
 class Bookmap:
-    def __init__(self, filename, bookmap_config, chapters, workgroups):
+    def __init__(self, filename, bookmap_config, run_options):
         self.filename = filename
         self.config = bookmap_config
         self.booktitle = self.parse_book_title(filename)
         self.delimiter = ','
         if filename.endswith('.tsv'):
             self.delimiter = '\t'
-        if not chapters:
+        if not run_options.chapters:
             self.chapters = self.get_chapters()
         else:
-            self.chapters = chapters
-        self.workgroups = workgroups
-        self.placeholders = self.read_csv(filename)
+            self.chapters = run_options.chapters
+        if run_options.exclude:
+            self.chapters = [chapter for chapter in self.chapters if chapter not in run_options.exclude]
+        run_options.chapters = self.chapters
+        self.workgroups = run_options.workgroups
+        self.read_csv(filename)
 
     def read_csv(self, filename):
         """
@@ -49,9 +52,6 @@ class Bookmap:
         """
         self.bookmap_raw = list(csv.DictReader(open(filename), delimiter=self.delimiter))
         self.bookmap = self.convert(csv.DictReader(open(filename), delimiter=self.delimiter))
-        if filename.endswith('.out') or filename.startswith("OUT-"):
-            return False
-        return True
 
     def convert(self, reader):
         bookmap = BookmapData()
@@ -63,6 +63,8 @@ class Bookmap:
             self.safe_process_column('module.source_workspace_url = row[self.config.source_workgroup_column]', row, module)
             self.safe_process_column('module.destination_id = row[self.config.destination_module_ID_column]', row, module)
             self.safe_process_column('module.destination_workspace_url = row[self.config.destination_workgroup_column]', row, module)
+            self.safe_process_column('module.chapter_number = row[self.config.chapter_number_column]', row, module)
+            self.safe_process_column('module.chapter_title = row[self.config.chapter_title_column]', row, module)
             bookmap.add_module(module)
         if self.workgroups:
             for chapter in self.chapters:
@@ -124,7 +126,7 @@ class Bookmap:
         for module in list(self.bookmap_raw):
             if module[self.config.chapter_number_column] is str(chapter_num):
                 return module[self.config.chapter_number_column]+' '+module[self.config.chapter_title_column]
-        return ''
+        return ' '
 
     def save(self):
         save_file = 'OUT-'+self.filename
@@ -159,9 +161,9 @@ class BookmapData:
 
     def output(self, module):
         out = []
-        chapter_number = module.get_chapter_number()
-        out.append(chapter_number)
-        out.append(self.get_chapter_title(chapter_number)) # chapter number and title for module
+        # chapter_number = module.get_chapter_number()
+        out.append(module.chapter_number)
+        out.append(module.chapter_title)  # self.get_chapter_title(chapter_number))  # chapter number and title for module
         module_title_entry = module.title
         if module.section_number:
             module_title_entry = module.section_number+' '+module_title_entry
@@ -216,13 +218,22 @@ class Workgroup(Workspace):
 
 
 class CNXModule(object):
-    def __init__(self, title, section_number='', source_workspace_url='', source_id='', destination_workspace_url='', destination_id=''):
+    def __init__(self, title,
+                       section_number='',
+                       source_workspace_url='',
+                       source_id='',
+                       destination_workspace_url='',
+                       destination_id='',
+                       chapter_title='',
+                       chapter_number=''):
         self.title = title
         self.section_number = section_number
         self.source_workspace_url = source_workspace_url
         self.source_id = source_id
         self.destination_workspace_url = destination_workspace_url
         self.destination_id = destination_id
+        self.chapter_title = chapter_title
+        self.chapter_number = chapter_number
 
     def get_chapter_number(self):
         return self.section_number.split('.')[0]

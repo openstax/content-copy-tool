@@ -13,13 +13,17 @@ class CopyConfiguration:
         self.credentials = credentials
 
 class RunOptions:
-    def __init__(self, workgroups, copy, roles, accept_roles, publish, chapters, dryrun, selenium=False):
+    def __init__(self, modules, workgroups, copy, roles, accept_roles, publish, chapters, exclude, dryrun, selenium=False):
+        self.modules = modules
         self.workgroups = workgroups
+        if self.workgroups:
+            self.modules = True
         self.copy = copy
         self.roles = roles
         self.accept_roles = accept_roles
         self.publish = publish
         self.chapters = chapters
+        self.exclude = exclude
         self.dryrun = dryrun
         self.selenium = selenium
 
@@ -74,24 +78,25 @@ class Copier:
           that did not succeed in transfer.
         """
         for module in self.copy_map.modules:
-            files = []
-            logger.info("Copying content for module: "+module.source_id)
-            if not run_options.dryrun:
-                files.append(http.http_download_file(self.config.source_server+'/content/'+module.source_id+'/latest/module_export?format=zip', module.source_id, '.zip'))
-                files.append(http.http_download_file(self.config.source_server+'/content/'+module.source_id+'/latest/rhaptos-deposit-receipt', module.source_id, '.xml'))
-                if run_options.roles:
-                    RoleUpdater(role_config).run_update_roles(module.source_id+'.xml')
+            if module.chapter_number in run_options.chapters:
+                files = []
+                logger.info("Copying content for module: "+module.source_id)
+                if not run_options.dryrun:
+                    files.append(http.http_download_file(self.config.source_server+'/content/'+module.source_id+'/latest/module_export?format=zip', module.source_id, '.zip'))
+                    files.append(http.http_download_file(self.config.source_server+'/content/'+module.source_id+'/latest/rhaptos-deposit-receipt', module.source_id, '.xml'))
+                    if run_options.roles:
+                        RoleUpdater(role_config).run_update_roles(module.source_id+'.xml')
 
-                self.clean_zip(module.source_id+'.zip')  # remove index.cnxml.html from zipfile
+                    self.clean_zip(module.source_id+'.zip')  # remove index.cnxml.html from zipfile
 
-                res, mpart = http.http_upload_file(module.source_id+'.xml', module.source_id+'.zip', module.destination_workspace_url+"/"+module.destination_id+'/sword', self.config.credentials)
-                files.append(mpart)
-                # clean up temp files
-                if res.status < 400:
-                    for temp_file in files:
-                        remove(temp_file)
-                else:
-                    print res.status, res.reason  # TODO better handle for production
+                    res, mpart = http.http_upload_file(module.source_id+'.xml', module.source_id+'.zip', module.destination_workspace_url+"/"+module.destination_id+'/sword', self.config.credentials)
+                    files.append(mpart)
+                    # clean up temp files
+                    if res.status < 400:
+                        for temp_file in files:
+                            remove(temp_file)
+                    else:
+                        print res.status, res.reason  # TODO better handle for production
 
 class ContentCreator:
     def __init__(self, server, credentials):

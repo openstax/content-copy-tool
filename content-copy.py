@@ -1,7 +1,5 @@
 #!/usr/bin/python
 import sys
-import re as regex
-
 import lib.util as util
 import lib.command_line_interface as cli
 from lib.operation_objects import *
@@ -36,8 +34,7 @@ def run(settings, input_file, run_options):
                                           str(config['destination_module_ID_column']),
                                           str(config['destination_workgroup_column']),
                                           str(config['strip_section_numbers']))
-    bookmap = Bookmap(input_file, bookmap_config, run_options.chapters, run_options.workgroups)
-    run_options.placeholders = bookmap.placeholders  # if False, input_file is a .out (copy map)
+    bookmap = Bookmap(input_file, bookmap_config, run_options)
 
     # Copy Configuration and Copier
     source_server = str(config['source_server'])
@@ -54,7 +51,7 @@ def run(settings, input_file, run_options):
     # Role Configuration
     role_config = RoleConfiguration(list(config['creators']),
                                     list(config['maintainers']),
-                                    list(config['rightholders']), config, credentials)
+                                    list(config['rightsholders']), config, credentials)
 
     # Content_creator
     content_creator = ContentCreator(destination_server, credentials)
@@ -65,7 +62,7 @@ def run(settings, input_file, run_options):
     user_confirm(logger, copy_config, bookmap, run_options)  # Check before you run
 
     try:
-        if run_options.placeholders:  # create placeholders
+        if run_options.modules or run_options.workgroups:  # create placeholders
             create_placeholders(logger, bookmap, copy_config, run_options, content_creator)
         if run_options.copy:  # copy content
             copier.copy_content(role_config, run_options, logger)
@@ -76,7 +73,7 @@ def run(settings, input_file, run_options):
     except CustomError, e:
         logger.error(e.msg)
 
-    if run_options.placeholders:
+    if run_options.modules or run_options.workgroups:
         output = bookmap.save()  # save output data
         logger.info("See output: \033[95m"+output+"\033[0m")
     logger.info("------- Process completed --------")
@@ -96,22 +93,23 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
 
     logger.info("-------- Creating modules -------------------------------")
     for module in bookmap.bookmap.modules:
-        if module.get_chapter_number() in bookmap.chapters:
+        if module.chapter_number in bookmap.chapters:
             workgroup_url = 'Members/'
             if run_options.workgroups:
-                workgroup_url = chapter_to_workgroup[module.get_chapter_number()].url
+                workgroup_url = chapter_to_workgroup[module.chapter_number].url
             try:
                 content_creator.run_create_and_publish_module(module, copy_config.destination_server, copy_config.credentials, logger, workgroup_url, dryrun=run_options.dryrun) # http version
                 if run_options.workgroups:
-                    chapter_to_workgroup[module.get_chapter_number()].add_module(module)
+                    chapter_to_workgroup[module.chapter_number].add_module(module)
             except CustomError:
                 logger.error("Module "+module.title+" failed to be created.")
 
 def publish_modules_post_copy(copier, content_creator, run_options, credentials, logger):
     for module in copier.copy_map.modules:
-        logger.info("Publishing module: "+module.destination_id)
-        if not run_options.dryrun:
-            content_creator.publish_module(module.destination_workspace_url+'/'+module.destination_id+'/', credentials, False)
+        if module.chapter_number in run_options.chapters:
+            logger.info("Publishing module: "+module.destination_id)
+            if not run_options.dryrun:
+                content_creator.publish_module(module.destination_workspace_url+'/'+module.destination_id+'/', credentials, False)
 
 def user_confirm(logger, copy_config, bookmap, run_options):
     """
@@ -131,8 +129,8 @@ def user_confirm(logger, copy_config, bookmap, run_options):
         logger.info("Credentials: \033[95m"+copy_config.credentials+"\033[0m")
     logger.info("Content: \033[95m"+bookmap.booktitle+"\033[0m")
     logger.info("Chapters: \033[95m"+str(bookmap.chapters)+"\033[0m")
-    logger.info("Create placeholders?: \033[95m"+str(run_options.placeholders)+"\033[0m")
-    if run_options.placeholders:
+    logger.info("Create placeholders?: \033[95m"+str(run_options.modules or run_options.workgroups)+"\033[0m")
+    if run_options.modules:
         logger.info("Create workgroups? \033[95m"+str(run_options.workgroups)+"\033[0m")
     logger.info("Copy content? \033[95m"+str(run_options.copy)+"\033[0m")
     if run_options.copy:
@@ -154,7 +152,7 @@ def main():
 
     if args.chapters:
         args.chapters.sort()
-    run_options = RunOptions(args.workgroups, args.copy, args.roles, args.accept_roles, args.publish, args.chapters, args.dryrun, args.selenium)
+    run_options = RunOptions(args.modules, args.workgroups, args.copy, args.roles, args.accept_roles, args.publish, args.chapters, args.exclude, args.dryrun)#, args.selenium)
     run(args.settings, args.input_file, run_options)
 
 if __name__ == "__main__":

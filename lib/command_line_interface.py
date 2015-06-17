@@ -76,14 +76,16 @@ def get_parser(version):
     required_args.add_argument("-i", "--input-file", action="store", dest="input_file", required=True, help="The input file path")
 
     control_args = parser.add_argument_group("Control and Options Arguments (Optional)", "These arguments let you define exactly what you want to do on this run.")
+    control_args.add_argument("-m", "--modules", action="store_true", dest="modules", help="Create modules for entry in the input file. If -w, --workgroups is used, this flag is redundant and implied.")
     control_args.add_argument("-w", "--workgroups", action="store_true", dest="workgroups", help="Create workgroups for chapter titles (the input data must have chapter titles if enabled).")
     control_args.add_argument("-c", "--copy", action="store_true", dest="copy", help="Use this flag to copy the data from source server to destination server. Without this flag, no content will be copied over. When using this flag, input file must have a source module ID column filled for each module that will be copied.")
     control_args.add_argument("-r", "--roles", action="store_true", dest="roles", help="Use this flag is you want to update the roles according to the settings (.json) file. This flag only works if -c, --copy flag is also set.")
     control_args.add_argument("--accept-roles", action="store_true", dest="accept_roles", help="Use this flag to automatically accept the roles requests.")
     control_args.add_argument("-p", "--publish", action="store_true", dest="publish", help="Use this flag to publish the modules after copying content to the destination server.")
-    control_args.add_argument("-a", "--chapters", action="store", dest="chapters", nargs="*", help="Which chapters to copy (optional).")
+    control_args.add_argument("-a", "--chapters", action="store", dest="chapters", nargs="*", help="Which chapters to operate on (optional).")
+    control_args.add_argument("--exclude-chapters", action="store", dest="exclude", nargs="*", help="Which chapters NOT to operate on (optional).")
     control_args.add_argument("--dry-run", action="store_true", dest="dryrun", help="Steps through input processing, but does NOT create or copy any content. This is used for checking input file correctness (optional).")
-    control_args.add_argument("--selenium", action="store_true", dest="selenium", help="Use this flag to use selenium for placeholder creation.")
+    # control_args.add_argument("--selenium", action="store_true", dest="selenium", help="Use this flag to use selenium for placeholder creation.")
 
     parser.add_argument("--version", action="version", version=version, help="Prints the tool's version")
 
