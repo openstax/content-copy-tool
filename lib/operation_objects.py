@@ -72,7 +72,7 @@ class Copier:
             self.remove_file_from_dir(zipdir, 'index.cnxml.html')
             self.zipdir(zipdir, zipfile)
 
-    def copy_content(self, role_config, run_options, logger):
+    def copy_content(self, role_config, run_options, logger, failures):
         """
         Copies content from source server to server specified by each entry in the
         content copy map.
@@ -90,15 +90,21 @@ class Copier:
             if module.chapter_number in run_options.chapters:
                 files = []
                 if module.source_id is None:
-                    raise CCTError("Module [" + module.title + "]has not source id")
+                    logger.error("Module " + module.title + " has no source id")
+                    failures.append((module.full_title(), ": module has not source id"))
+                    continue
                 logger.info("Copying content for module: " + str(module.source_id))
                 if not run_options.dryrun:
                     files.append(http.http_download_file(self.config.source_server + '/content/' + module.source_id +
                                                          '/latest/module_export?format=zip', module.source_id, '.zip'))
                     files.append(http.http_download_file(self.config.source_server + '/content/' + module.source_id +
                                                          '/latest/rhaptos-deposit-receipt', module.source_id, '.xml'))
-                    if run_options.roles:
-                        RoleUpdater(role_config).run_update_roles(module.source_id + '.xml')
+                    try:
+                        if run_options.roles:
+                            RoleUpdater(role_config).run_update_roles(module.source_id + '.xml')
+                    except CCTError:
+                        logger.error("Failure updating roles on module " + module.source_id)
+                        failures.append((module.full_title(), " updating roles"))
 
                     self.clean_zip(module.source_id + '.zip')  # remove index.cnxml.html from zipfile
 
@@ -111,7 +117,8 @@ class Copier:
                         for temp_file in files:
                             remove(temp_file)
                     else:
-                        raise CCTError("Failure to copy module " + str(module.source_id))
+                        logger.error("Failed copying module " + module.title)
+                        failures.append((module.full_title(), " copying module "))
 
 class ContentCreator:
     def __init__(self, server, credentials):
@@ -134,10 +141,7 @@ class ContentCreator:
         """
         logger.info("Creating workgroup: " + workgroup.title + " on " + server)
         if not dryrun:
-            try:
-                self.create_workgroup(workgroup, server, credentials)
-            except CCTError, error:
-                print error.msg
+            self.create_workgroup(workgroup, server, credentials)
 
     def create_workgroup(self, workgroup, server, credentials):
         """

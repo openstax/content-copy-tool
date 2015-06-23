@@ -59,26 +59,29 @@ def run(settings, input_file, run_options):
     logfile = config['logfile']
     logger = util.init_logger(logfile)
 
+    failures = []
+
     user_confirm(logger, copy_config, bookmap, run_options, role_config)  # Check before you run
 
     try:
         if run_options.modules or run_options.workgroups:  # create placeholders
-            create_placeholders(logger, bookmap, copy_config, run_options, content_creator)
+            create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures)
         if run_options.copy:  # copy content
-            copier.copy_content(role_config, run_options, logger)
+            copier.copy_content(role_config, run_options, logger, failures)
         if run_options.accept_roles:  # accept all pending role requests
-            RoleUpdater(role_config).accept_roles(copy_config)
+            RoleUpdater(role_config).accept_roles(copy_config, logger, failures)
         if run_options.publish:  # publish the modules
-            publish_modules_post_copy(copier, content_creator, run_options, credentials, logger)
+            publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures)
     except CCTError, e:
         logger.error(e.msg)
 
     if run_options.modules or run_options.workgroups:
         output = bookmap.save()  # save output data
         logger.info("See output: \033[95m" + output + "\033[0m")
+    print_failures(logger, failures)
     logger.info("------- Process completed --------")
 
-def create_placeholders(logger, bookmap, copy_config, run_options, content_creator):
+def create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures):
     """
     Creates placeholder modules on the destination server (and workgroups if enables).
 
@@ -88,6 +91,7 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
         copy_config - the configuration of the copier with source and destination urls and credentials
         run_options - the input running options, what the tool should be doing
         content_creator - the content creator object
+        failures - the list of failures to track failed placeholder creations
 
     Returns:
         None
@@ -104,6 +108,9 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                              workgroup.chapter_number)
                 bookmap.chapters.remove(workgroup.chapter_number)
                 bookmap.bookmap.workgroups.remove(workgroup)
+                for module in bookmap.bookmap.modules:
+                    if module.chapter_number is workgroup.chapter_number:
+                        failures.append((module.full_title(), " creating placeholder"))
             chapter_to_workgroup[workgroup.chapter_number] = workgroup
 
     logger.info("-------- Creating modules -------------------------------")
@@ -120,8 +127,9 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                     chapter_to_workgroup[module.chapter_number].add_module(module)
             except CCTError:
                 logger.error("Module " + module.title + " failed to be created.")
+                failures.append((module.full_title, " creating placeholder"))
 
-def publish_modules_post_copy(copier, content_creator, run_options, credentials, logger):
+def publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures):
     """
     Publishes modules that has been copied to the destination server.
 
@@ -139,8 +147,16 @@ def publish_modules_post_copy(copier, content_creator, run_options, credentials,
         if module.chapter_number in run_options.chapters:
             logger.info("Publishing module: " + module.destination_id)
             if not run_options.dryrun:
-                content_creator.publish_module(module.destination_workspace_url + '/' + module.destination_id + '/', 
-                                               credentials, False)
+                try:
+                    content_creator.publish_module(module.destination_workspace_url + '/' + module.destination_id + '/',
+                                                   credentials, False)
+                except CCTError, e:
+                    logger.error("Failed to publish module " + module.destination_id)
+                    failures.append((module.full_title, "publishing module"))
+
+def print_failures(logger, failures):
+    for failure in failures:
+        logger.error("\033[95mFailed" + failure[1] + " - \033[91m" + failure[0] + "\033[0m")
 
 def user_confirm(logger, copy_config, bookmap, run_options, role_config):
     """

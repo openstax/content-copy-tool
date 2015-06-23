@@ -120,11 +120,16 @@ class RoleUpdater:
             except KeyError:
                 if not (self.config.credentials.split(':')[0] == user):
                     raise CCTError("Could not find credentials for user involved in roles, check settings file for: "
-                                      + user)
+                                   + user)
         return users_and_creds
 
-    def accept_roles(self, copy_config):
-        users = self.get_users_of_roles()
+    def accept_roles(self, copy_config, logger, failures):
+        try:
+            users = self.get_users_of_roles()
+        except CCTError, e:
+            logger.error(e.msg)
+            logger.error("Not accepting roles")
+            return
         for user in users:
             parameters = "?"
             for id in self.get_pending_roles_request_ids(copy_config, user):
@@ -134,5 +139,6 @@ class RoleUpdater:
             response = http.http_get_request(copy_config.destination_server + '/updateCollaborations' + parameters,
                                              auth=auth)  # yes, it is a GET request
             if not http.verify(response):
-                print "ERROR accepting pending requests for " + auth[0] + str(response.status_code) + ' ' + \
-                      response.reason
+                logger.error("Failure accepting pending requests for " + auth[0] + str(response.status_code) + ' ' +
+                             response.reason)
+                failures.append((auth[0], " accepting pending role requests"))

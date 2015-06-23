@@ -272,6 +272,12 @@ class CNXModule(object):
     def get_chapter_number(self):
         return self.section_number.split('.')[0]
 
+    def full_title(self):
+        if self.section_number is not '' or self.section_number is not ' ' or self.section_number is not None:
+            return self.section_number + ' ' + self.title
+        else:
+            return self.title
+
     def __str__(self):
         return self.section_number + ' ' + self.title + ' ' + self.source_workspace_url + ' ' + self.source_id + \
             ' ' + self.destination_workspace_url + ' ' + self.destination_id
