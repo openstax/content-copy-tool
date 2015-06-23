@@ -49,7 +49,7 @@ def run(settings, input_file, run_options):
     copier = Copier(copy_config, bookmap.bookmap, str(config['path_to_tool']))
 
     # Role Configuration
-    role_config = RoleConfiguration(list(config['creators']),
+    role_config = RoleConfiguration(list(config['authors']),
                                     list(config['maintainers']),
                                     list(config['rightsholders']), config, credentials)
 
@@ -173,7 +173,7 @@ def user_confirm(logger, copy_config, bookmap, run_options, role_config):
     if run_options.accept_roles:
         logger.info("Accept roles? \033[95m" + str(run_options.accept_roles) + "\033[0m")
     if run_options.roles or run_options.accept_roles:
-            logger.info("Creators: \033[95m" + ', '.join(role_config.creators) + "\033[0m")
+            logger.info("Authors: \033[95m" + ', '.join(role_config.creators) + "\033[0m")
             logger.info("Maintainers: \033[95m" + ', '.join(role_config.maintainers) + "\033[0m")
             logger.info("Rightsholders: \033[95m" + ', '.join(role_config.rightholders) + "\033[0m")
     logger.info("Publish content? \033[95m" + str(run_options.publish) + "\033[0m")

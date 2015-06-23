@@ -85,6 +85,51 @@ tool. Just load it in as the input file instead of a csv.
         input file. This requires that the input file be a .csv or .tsv.
         The use of this flag is: -a 0 1 2 3 5 6 8 9 or --chapters 4 5 6 1 2 9 10
 
+####Configuring the tool
+Before you run the tool, you need to configure the tool. To configure the tool, you will create settings files. 
+These files will act like presets of settings for common configurations. These settings files will be json files, 
+so be sure to name them [filename].json.
+
+Let’s look at the anatomy of the settings file. The highlighted text is text that you may wish to edit to configure the 
+tool. Of course you can edit other portions, but the highlighted parts represent best practices for keeping the rest of 
+the process consistent.
+
+1	{
+2	   "destination_server": "legacydev.cnx.org", 
+3	   "source_server": "legacy.cnx.org",
+4	   "credentials": "user2:user2",
+5	
+6	   "authors": ["user2"],
+7	   "maintainers": ["user2", "user1"],
+8	   "rightsholders": ["user2", "user3"],
+9	
+10	   "user1": "user1",
+11	   "user3": "user3",
+12	
+13	   "path_to_tool": "/Users/openstax/cnx/content-copy-tool",
+14	   "logfile": "content-copy.log",
+15	   "chapter_title_column": "Chapter Title",
+16	   "chapter_number_column": "Chapter Number",
+17	   "module_title_column": "Module Title",
+18	   "source_module_ID_column": "Production Module ID",
+19	   "source_workgroup_column": "Production Workgroup",
+20	   "destination_module_ID_column": "Dev Module ID",
+21	   "destination_workgroup_column": "Dev Workgroup",
+22	   "strip_section_numbers": "true"
+23	}
+
+Lines 2 and 3 are the urls for the source and destination servers.
+Line 4 is the username:password of the user that will be used to create/upload/publish the content.
+Lines 6 - 8 are the users that will be entered as the corresponding roles, in this example, for all content processed with this settings file (assuming the alter roles feature is enabled) the creator will be set to user2, the maintainers will be set to user2 and user1, and the rightsholders will be set to user2 and user3. Remember, the value in these lines is a list of usernames, even if only one user is the creator/maintainer/rightsholder the value is a list (with only one username in it), see line 6 as an example.
+Lines 10 and 11 are the usernames and passwords for the users that are used in the role altering that are NOT the user in line 4. Note the slight difference in formatting, here the username is the key and the password is the value.
+Line 13 is the absolute path to the tool. To find this, open a terminal within the tool’s top directory, (you should see content-copy.py, setup.py, and the lib/ subdirectory), run the command 
+pwd 
+The output of this command is the working directory (the path to the tool) and will be the value for this line. You should only have to edit this line once. 
+Line 14 is the name of the log file for the tool, you should not need to change this, but it might be valuable for reference later.
+Line 15 - 21 are the titles of the columns in the input file. The values for these lines must match the column titles in the input file (csv/tsv). However, if the input file does not have one of the optional columns (lines 18 - 21), the names can be whatever you wish them to be. It may be valuable to give them descriptive names that indicate the server they are on, for example. Keep in mind that the input file is a delimiter-separated-values files, so do not use a comma if the file is a .csv or a tab if the file is a .tsv.
+Line 22 tells the tool if you would like to remove section numbers from the titles of modules. For example, if the input file has a module titled “1.2 What is Psychology?” then you may want to strip the section numbers. If you choose to do so, the section number will be treated as a separate attribute of the module, in this example the title will become “What is Psychology?”. If you choose not to, the section numbers will be treated as part of the module name. If you want to remove section numbers from the title, set the value to true. If you do NOT want to remove section numbers, set the value to false.
+
+
 
 ####Install requirements
 - python 2.7.6+

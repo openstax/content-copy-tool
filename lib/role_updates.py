@@ -104,7 +104,6 @@ class RoleUpdater:
         return ids
 
     def get_users_of_roles(self):
-        # TODO get all the users in the new roles (the ones with pending role requests)
         users = set()
         for creator in self.config.creators:
             users.add(creator)
