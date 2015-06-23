@@ -4,23 +4,14 @@
 The content-copy-tool is currently in development. As of 6-9-15, the tool can create placeholder content, copy content, edit roles, and publish modules.
 
 ####TODO
-- look into pending role requests
-- infrastructure for user-working directory
-- should the roles information be in the confirmation summary?
 - different credentials for source and destination - what will be source and destination
 - name uniqueness: workspaces & modules
 - config-ify license and url's and stuff
-- ?use sword to create/publish modules
-- ?better error handling in selenium scripts: always teardown.
-- ?quick succession mode for selenium?
 
 ####Context
 The Content-Copy-Tool is a python tool that provides configurable automation for copying content from one cnx server to another. The tool can create placeholder modules (and workgroups), copy content into those placeholders, edit the roles on the content during the copy, and publish\* modules. These can also be run independently\*\*.
 
-
-\* Cannot publish with pending roles requests in current version.
-
-\*\* Editing roles requires copying. Chapter selection requires placeholder creation.
+\*\* Editing roles requires copying.
 
 ####Description
 The Content-Copy-Tool is configurable. The first way of configuring it

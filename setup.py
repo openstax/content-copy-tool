@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 install_requires = (
     "requests",
@@ -9,5 +9,4 @@ setup(name='content-copy-tool',
       version='0.3',
       py_modules=['lib'],
       install_requires=install_requires,
-      entry_points={'console_scripts': ['content-copy = content-copy', ], },
       )

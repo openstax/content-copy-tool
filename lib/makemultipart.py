@@ -27,10 +27,11 @@ def makemultipart(atomfile, package, outfile):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Create a multipart file from an atom entry and a package (zip, word, odt)')
+    parser = argparse.ArgumentParser(description='Create a multipart file from an atom entry and a package '
+                                                 '(zip, word, odt)')
     parser.add_argument('atomfile', help='/path/to/atomfile', type=open)
     parser.add_argument('package', help='/path/to/package', type=open)
-    parser.add_argument('outfile', help='name of output file', type=argparse.FileType('w+'))
+    parser.add_argument('outfile', help='name of output file', type=argparse.FileType('w + '))
     args = parser.parse_args()
     makemultipart(args.atomfile, args.package, args.outfile)
 

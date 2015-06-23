@@ -2,7 +2,13 @@ import csv
 import re as regex
 import datetime
 
+"""
+This file contains the bookmap related objects.
+"""
+
+
 class BookmapConfiguration:
+    """ Holds the settings of the bookmap """
     def __init__(self, chapter_number_column,
                        chapter_title_column,
                        module_title_column,
@@ -22,6 +28,7 @@ class BookmapConfiguration:
             self.strip_section_numbers = True
 
 class Bookmap:
+    """ Represents the input data plus the input options """
     def __init__(self, filename, bookmap_config, run_options):
         self.filename = filename
         self.config = bookmap_config
@@ -47,34 +54,53 @@ class Bookmap:
         Each entry is a dictionary that maps the column title (first line in csv)
         to the row value (corresponding column in that row).
 
-        TODO update docstring
-        Alternatively, if the file is a .out, it will return a read version of that.
+        Arguments:
+            filename - the path to the input file.
+
+        Returns:
+            None
         """
         self.bookmap_raw = list(csv.DictReader(open(filename), delimiter=self.delimiter))
         self.bookmap = self.convert(csv.DictReader(open(filename), delimiter=self.delimiter))
 
     def convert(self, reader):
+        """
+        Reads the input raw data and converts it into the bookmap object.
+
+        Arguments:
+            reader - the reader that has opened the input file
+
+        Returns:
+            The internal BookmapData object with all of the parsed data from the input file.
+        """
         bookmap = BookmapData()
         for row in reader:
             section_number, title = self.strip_section_numbers(row[self.config.module_title_column])
             module = CNXModule(title, section_number)
             # Read in available data from input file TODO make more extensible
-            self.safe_process_column('module.source_id = row[self.config.source_module_ID_column]', row, module)
-            self.safe_process_column('module.source_workspace_url = row[self.config.source_workgroup_column]', row, module)
-            self.safe_process_column('module.destination_id = row[self.config.destination_module_ID_column]', row, module)
-            self.safe_process_column('module.destination_workspace_url = row[self.config.destination_workgroup_column]', row, module)
-            self.safe_process_column('module.chapter_number = row[self.config.chapter_number_column]', row, module)
-            self.safe_process_column('module.chapter_title = row[self.config.chapter_title_column]', row, module)
+            self.safe_process_column('module.source_id = row[self.config.source_module_ID_column]', 
+                                     row, module)
+            self.safe_process_column('module.source_workspace_url = row[self.config.source_workgroup_column]', 
+                                     row, module)
+            self.safe_process_column('module.destination_id = row[self.config.destination_module_ID_column]', 
+                                     row, module)
+            self.safe_process_column('module.destination_workspace_url = row[self.config.destination_workgroup_column]',
+                                     row, module)
+            self.safe_process_column('module.chapter_number = row[self.config.chapter_number_column]', 
+                                     row, module)
+            self.safe_process_column('module.chapter_title = row[self.config.chapter_title_column]', 
+                                     row, module)
             bookmap.add_module(module)
         if self.workgroups:
             for chapter in self.chapters:
                 chapter_number_and_title = self.get_chapter_number_and_title(chapter)
                 chapter_title = chapter_number_and_title.split(' ', 1)[1]
-                wgtitle = self.booktitle+' - '+chapter_number_and_title+str(datetime.datetime.now())
+                wgtitle = self.booktitle + ' - ' + chapter_number_and_title + str(datetime.datetime.now())
                 bookmap.add_workgroup(Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title))
         return bookmap
 
     def safe_process_column(self, expression, row, module):
+        """ Catch the KeyError because not all columns are required. """
         try:
             exec expression
         except KeyError:
@@ -89,11 +115,11 @@ class Bookmap:
         input filename, so for /path/to/file/myfile.out it will return myfile.out
         """
         if filepath.endswith('.csv'):
-            return filepath[filepath.rfind('/')+1:filepath.find('.csv')]
+            return filepath[filepath.rfind('/') + 1:filepath.find('.csv')]
         if filepath.endswith('.tsv'):
-            return filepath[filepath.rfind('/')+1:filepath.find('.tsv')]
+            return filepath[filepath.rfind('/') + 1:filepath.find('.tsv')]
         else:
-            return filepath[filepath.rfind('/')+1:]
+            return filepath[filepath.rfind('/') + 1:]
 
     def get_chapters(self):
         """ Returns a list of all the valid chapters in the bookmap """
@@ -107,7 +133,7 @@ class Bookmap:
         """ Strips the section numbers from the module title """
         if regex.match('[0-9]', title):
             num = title[:str.index(title, ' '):]
-            title = title[str.index(title, ' ')+1:]
+            title = title[str.index(title, ' ') + 1:]
             return num, title
         return '', title
 
@@ -125,11 +151,12 @@ class Bookmap:
         """ Gets the title of the provided chapter number in the provide bookmap """
         for module in list(self.bookmap_raw):
             if module[self.config.chapter_number_column] is str(chapter_num):
-                return module[self.config.chapter_number_column]+' '+module[self.config.chapter_title_column]
+                return module[self.config.chapter_number_column] + ' ' + module[self.config.chapter_title_column]
         return ' '
 
     def save(self):
-        save_file = 'OUT-'+self.filename
+        """ Saves the bookmap object to a file with same format as the input file. """
+        save_file = 'OUT-' + self.filename
         columns = [self.config.chapter_number_column,
                    self.config.chapter_title_column,
                    self.config.module_title_column,
@@ -149,6 +176,7 @@ class Bookmap:
 
 
 class BookmapData:
+    """ The data structure that holds the bookmap input data. """
     def __init__(self):
         self.modules = []
         self.workgroups = []
@@ -160,13 +188,18 @@ class BookmapData:
         self.workgroups.append(workgroup)
 
     def output(self, module):
+        """
+        Compiles the output data for the given module.
+
+        Returns:
+            A list of the data that goes in the output file for this module.
+        """
         out = []
-        # chapter_number = module.get_chapter_number()
         out.append(module.chapter_number)
-        out.append(module.chapter_title)  # self.get_chapter_title(chapter_number))  # chapter number and title for module
+        out.append(module.chapter_title)
         module_title_entry = module.title
         if module.section_number:
-            module_title_entry = module.section_number+' '+module_title_entry
+            module_title_entry = module.section_number + ' ' + module_title_entry
         out.append(module_title_entry)
         out.append(module.source_id)
         out.append(module.source_workspace_url)
@@ -174,8 +207,8 @@ class BookmapData:
         out.append(module.destination_workspace_url)
         return out
 
-    def get_chapter_title(self, chapter_number):
-        titles = [workgroup.chapter_title for workgroup in self.workgroups if workgroup.chapter_number is chapter_number]
+    def get_chapter_title(self, chap_number):
+        titles = [workgroup.chapter_title for workgroup in self.workgroups if workgroup.chapter_number is chap_number]
         if titles:
             return titles[0]
         return ""
@@ -186,7 +219,7 @@ class BookmapData:
             thestr += str(workgroup)
         thestr += '\n'
         for module in self.modules:
-            thestr += str(module)+'\n'
+            thestr += str(module) + '\n'
         return thestr
 
 
@@ -213,8 +246,9 @@ class Workgroup(Workspace):
     def __str__(self):
         modules_str = ""
         for module in self.modules:
-            modules_str += '\n\t'+str(module)
-        return self.id+' '+self.title+' '+self.chapter_number+' '+self.chapter_title+' '+self.url+' '+modules_str
+            modules_str += '\n\t' + str(module)
+        return self.id + ' ' + self.title + ' ' + self.chapter_number + ' ' + self.chapter_title + ' ' + self.url + \
+            ' ' + modules_str
 
 
 class CNXModule(object):
@@ -239,5 +273,6 @@ class CNXModule(object):
         return self.section_number.split('.')[0]
 
     def __str__(self):
-        return self.section_number+' '+self.title+' '+self.source_workspace_url+' '+self.source_id+' '+self.destination_workspace_url+' '+self.destination_id
+        return self.section_number + ' ' + self.title + ' ' + self.source_workspace_url + ' ' + self.source_id + \
+            ' ' + self.destination_workspace_url + ' ' + self.destination_id
 

@@ -51,10 +51,10 @@ def http_request(url, headers={}, data={}):
 def http_download_file(url, filename, extension):
     """ Downloads the file at [url] and saves it as [filename.extension]. """
     try:
-        urllib.urlretrieve(url, filename+extension)
+        urllib.urlretrieve(url, filename + extension)
     except urllib.error.URLError as e:
         print(e.reason)
-    return filename+extension
+    return filename + extension
 
 def extract_boundary(filename):
     """ Extracts the boundary line of a multipart file at filename. """
@@ -62,7 +62,7 @@ def extract_boundary(filename):
     boundary_end = '\"'
     with open(filename) as file:
         text = file.read()
-        start = text.find(boundary_start)+len(boundary_start)
+        start = text.find(boundary_start) + len(boundary_start)
         end = text.find(boundary_end, start)
         return text[start:end]
 
@@ -76,7 +76,8 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
     multi.makemultipart(open(xmlfile), open(zipfile), open(abs_path, 'w'))
     boundary_code = extract_boundary(abs_path)
     userAndPass = b64encode(credentials).decode("ascii")
-    headers = {"Content-Type": "multipart/related;boundary="+boundary_code+";type=application/atom+xml", "In-Progress": "true", "Accept-Encoding":"zip", "Authorization" : 'Basic %s' %  userAndPass }
+    headers = {"Content-Type": "multipart/related;boundary=" + boundary_code + ";type=application/atom + xml",
+               "In-Progress": "true", "Accept-Encoding": "zip", "Authorization": 'Basic %s' % userAndPass}
     req = urllib2.Request(url)
     connection = httplib.HTTPConnection(req.get_host())
     connection.request('POST', req.get_selector(), open(abs_path), headers)
