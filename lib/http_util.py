@@ -85,10 +85,11 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
     close(fh)
     return response, abs_path
 
-def verify(response):
+def verify(response, logger):
     """ Returns True if the response code is < 400, False otherwise. """
     if response.status_code < 400:
         return True
     else:
-        print response.status_code, response.reason
+        logger.debug("Failed response: " + str(response.status_code) + " " + response.reason + " when sending to " +
+                     str(response.request.url) + " with data " + str(response.request.body))
         return False

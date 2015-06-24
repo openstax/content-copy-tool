@@ -66,6 +66,9 @@ tool. Just load it in as the input file instead of a csv.
     This flag is used to specify which chapters to operate over in the input
     file. This requires that the input file be a '*.csv' or '*.tsv'. The use of
     this flag is: -a 0 1 2 3 5 6 8 9  or  --chapters 4 5 6 1 2 9 10
+--exclude-chapters
+    This flag acts as the inverse of the -a, --chapters flag, values of this
+    flag will be chapters that are NOT processed.
 """
 
 def get_parser(version):

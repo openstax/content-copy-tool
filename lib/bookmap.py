@@ -95,7 +95,8 @@ class Bookmap:
             for chapter in self.chapters:
                 chapter_number_and_title = self.get_chapter_number_and_title(chapter)
                 chapter_title = chapter_number_and_title.split(' ', 1)[1]
-                wgtitle = self.booktitle + ' - ' + chapter_number_and_title + str(datetime.datetime.now())
+                wgtitle = self.booktitle + ' - ' + chapter_number_and_title
+                wgtitle += str(datetime.datetime.now())  # REMOVE IN PRODUCTION
                 bookmap.add_workgroup(Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title))
         return bookmap
 
@@ -268,6 +269,7 @@ class CNXModule(object):
         self.destination_id = destination_id
         self.chapter_title = chapter_title
         self.chapter_number = chapter_number
+        self.valid = True
 
     def get_chapter_number(self):
         return self.section_number.split('.')[0]

@@ -41,10 +41,10 @@ def run(settings, input_file, run_options):
     destination_server = str(config['destination_server'])
     # ensure server addresses have 'http[s]://' prepended
     if not regex.match('https?://', source_server):
-        source_server = 'https://' + source_server
+        source_server = 'http://' + source_server
     if not regex.match('https?://', destination_server):
-        destination_server = 'https://' + destination_server
-    credentials = str(config['credentials'])
+        destination_server = 'http://' + destination_server
+    credentials = str(config['destination_credentials'])
     copy_config = CopyConfiguration(source_server, destination_server, credentials)
     copier = Copier(copy_config, bookmap.bookmap, str(config['path_to_tool']))
 
@@ -110,12 +110,13 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                 bookmap.bookmap.workgroups.remove(workgroup)
                 for module in bookmap.bookmap.modules:
                     if module.chapter_number is workgroup.chapter_number:
+                        module.valid = False
                         failures.append((module.full_title(), " creating placeholder"))
             chapter_to_workgroup[workgroup.chapter_number] = workgroup
 
     logger.info("-------- Creating modules -------------------------------")
     for module in bookmap.bookmap.modules:
-        if module.chapter_number in bookmap.chapters:
+        if module.valid and module.chapter_number in bookmap.chapters:
             workgroup_url = 'Members/'
             if run_options.workgroups:
                 workgroup_url = chapter_to_workgroup[module.chapter_number].url
@@ -127,6 +128,7 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                     chapter_to_workgroup[module.chapter_number].add_module(module)
             except CCTError:
                 logger.error("Module " + module.title + " failed to be created.")
+                module.valid = False
                 failures.append((module.full_title, " creating placeholder"))
 
 def publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures):
@@ -144,19 +146,20 @@ def publish_modules_post_copy(copier, content_creator, run_options, credentials,
         None
     """
     for module in copier.copy_map.modules:
-        if module.chapter_number in run_options.chapters:
-            logger.info("Publishing module: " + module.destination_id)
+        if module.valid and module.chapter_number in run_options.chapters:
+            logger.info("Publishing module: " + module.destination_id + " - " + module.full_title())
             if not run_options.dryrun:
                 try:
                     content_creator.publish_module(module.destination_workspace_url + '/' + module.destination_id + '/',
-                                                   credentials, False)
-                except CCTError, e:
+                                                   credentials, logger, False)
+                except CCTError:
                     logger.error("Failed to publish module " + module.destination_id)
+                    module.valid = False
                     failures.append((module.full_title, "publishing module"))
 
 def print_failures(logger, failures):
     for failure in failures:
-        logger.error("\033[95mFailed" + failure[1] + " - \033[91m" + failure[0] + "\033[0m")
+        logger.error("\033[95mFailed" + str(failure[1]) + " - \033[91m" + str(failure[0]) + "\033[0m")
 
 def user_confirm(logger, copy_config, bookmap, run_options, role_config):
     """
@@ -174,9 +177,9 @@ def user_confirm(logger, copy_config, bookmap, run_options, role_config):
     if PRODUCTION:
         logger.info("User: \033[95m" + copy_config.credentials.split(':')[0] + "\033[0m")
     else:
-        logger.info("Credentials: \033[95m" + copy_config.credentials + "\033[0m")
+        logger.info("Destination Credentials: \033[95m" + copy_config.credentials + "\033[0m")
     logger.info("Content: \033[95m" + bookmap.booktitle + "\033[0m")
-    logger.info("Chapters: \033[95m" + ', '.join(bookmap.chapters) + "\033[0m")
+    logger.info("Which Chapters: \033[95m" + ', '.join(bookmap.chapters) + "\033[0m")
     logger.info("Number of Modules: \033[95m" + 
                 str(len([module for module in bookmap.bookmap.modules if module.chapter_number in bookmap.chapters])) + 
                 "\033[0m")

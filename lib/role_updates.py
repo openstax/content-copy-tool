@@ -87,11 +87,11 @@ class RoleUpdater:
         replace_map = [creator_tuple, maintainer_tuple, rightholder_tuple]
         return replace_map
 
-    def get_pending_roles_request_ids(self, copy_config, credentials):
+    def get_pending_roles_request_ids(self, copy_config, credentials, logger):
         ids = []
         auth = tuple(credentials.split(':'))
         response1 = http.http_get_request(copy_config.destination_server + '/collaborations', auth=auth)
-        if not http.verify(response1):
+        if not http.verify(response1, logger):
             raise CCTError("FAILURE getting pending role requests: " + str(response1.status_code) +
                               " " + response1.reason)
         else:
@@ -132,13 +132,13 @@ class RoleUpdater:
             return
         for user in users:
             parameters = "?"
-            for id in self.get_pending_roles_request_ids(copy_config, user):
+            for id in self.get_pending_roles_request_ids(copy_config, user, logger):
                 parameters += "ids%3Alist=" + id + "&"
             parameters += 'agree=&accept= + Accept + '  # rest of form
             auth = tuple(user.split(':'))
             response = http.http_get_request(copy_config.destination_server + '/updateCollaborations' + parameters,
                                              auth=auth)  # yes, it is a GET request
-            if not http.verify(response):
+            if not http.verify(response, logger):
                 logger.error("Failure accepting pending requests for " + auth[0] + str(response.status_code) + ' ' +
                              response.reason)
                 failures.append((auth[0], " accepting pending role requests"))
