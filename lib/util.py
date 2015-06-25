@@ -1,5 +1,6 @@
 import json
 import logging
+import re as regex
 """
 This file contains some basic utility functions for the content-copy-tool.
 Functions relate to tool setup, selenium, and I/O.
@@ -14,7 +15,7 @@ def init_logger(filename):
     console_handler = logging.StreamHandler()
     file_handler = logging.FileHandler(filename)
 
-    file_formatter = logging.Formatter('"%(asctime)s - %(name)s - %(levelname)s - %(message)s"')
+    file_formatter = ColorStrippingFormatter('"%(asctime)s - %(name)s - %(levelname)s - %(message)s"')
     console_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s - %(message)s", "%Y-%m-%d %H:%M:%S")
 
     console_handler.setFormatter(console_formatter)
@@ -26,6 +27,14 @@ def init_logger(filename):
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
     return logger
+
+class ColorStrippingFormatter(logging.Formatter):
+    def format(self, record):
+        record.msg = self.remove_color_codes(record.msg)
+        return super(ColorStrippingFormatter, self).format(record)
+
+    def remove_color_codes(self, msg):
+        return regex.sub(r'\033\[\d*m', '', msg)
 
 def parse_json(input):
     """ Returns the parsed json input """
