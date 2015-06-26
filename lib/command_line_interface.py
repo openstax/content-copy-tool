@@ -100,6 +100,9 @@ def get_parser(version):
                                    "(.json) file. This flag only works if -c, --copy flag is also set.")
     control_args.add_argument("--accept-roles", action="store_true", dest="accept_roles",
                               help="Use this flag to automatically accept the roles requests.")
+    control_args.add_argument("-o", "--collection", action="store_true", dest="collection",
+                              help="Use this flag to create collections for each chapter in the book and a parent"
+                                   "collection for the entire book.")
     control_args.add_argument("-p", "--publish", action="store_true", dest="publish",
                               help="Use this flag to publish the modules after copying content to the "
                                    "destination server.")

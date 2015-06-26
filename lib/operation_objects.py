@@ -5,6 +5,7 @@ import zipfile
 import http_util as http
 from role_updates import RoleUpdater
 from util import CCTError
+from bookmap import Collection
 
 """
 This file contains the Copy and Content Creation related objects
@@ -20,7 +21,7 @@ class CopyConfiguration:
 
 class RunOptions:
     """ The input options that describe what the tool will do. """
-    def __init__(self, modules, workgroups, copy, roles, accept_roles, publish, chapters, exclude, dryrun):
+    def __init__(self, modules, workgroups, copy, roles, accept_roles, collections, publish, chapters, exclude, dryrun):
         self.modules = modules
         self.workgroups = workgroups
         if self.workgroups:
@@ -28,6 +29,7 @@ class RunOptions:
         self.copy = copy
         self.roles = roles
         self.accept_roles = accept_roles
+        self.collections = collections
         self.publish = publish
         self.chapters = chapters
         self.exclude = exclude
@@ -224,9 +226,7 @@ class ContentCreator:
         if not http.verify(response1, logger):
             raise CCTError('create module for' + title + ' request 1 failed: ' + str(response1.status_code) + ' ' +
                            response1.reason)
-        html = str(response1.text)
-        start = regex.search(r'<input\s*type="hidden"\s*name="license"\s*value="', html)
-        cc_license = html[start.end():html.find('"', start.end())]
+        cc_license = self.get_license(response1)
         data2 = {"agree": "on",
                  "form.button.next": "Next >>",
                  "license": cc_license,
@@ -277,3 +277,108 @@ class ContentCreator:
             return url[beg:end_id], url
         else:
             return module_url[module_url.rfind('/', 0, -1) + 1:-1], module_url
+
+    def get_license(self, response):
+        html = str(response.text)
+        start = regex.search(r'<input\s*type="hidden"\s*name="license"\s*value="', html)
+        return html[start.end():html.find('"', start.end())]
+
+    def create_collection(self, credentials, title, server, logger):
+        auth = tuple(credentials.split(':'))
+        data0 = {"type_name": "Collection",
+                 "workspace_factories:method": "Create New Item"}
+        response0 = http.http_post_request(server + "/Members/" + auth[0], auth=auth, data=data0)
+        if not http.verify(response0, logger):
+            raise CCTError('Creation of collection ' + title + ' request 2 failed: ' + str(response0.status_code) +
+                           ' ' + response0.reason)
+        cc_license = self.get_license(response0)
+        data1 = {"agree": "on",
+                 "form.button.next": "Next >>",
+                 "license": cc_license,
+                 "type_name": "Collection",
+                 "form.submitted": "1"}
+        data2 = {"title": title,
+                 "master_language": "en",
+                 "language": "en",
+                 "collectionType": "",
+                 "keywords:lines": "",
+                 "abstract": "",
+                 "license": cc_license,
+                 "form.button.next": "Next >>",
+                 "form.submitted": "1"}
+        response1 = http.http_post_request(response0.url, auth=auth, data=data1)
+        if not http.verify(response1, None):
+            raise CCTError('Creation of collection ' + title + ' request 2 failed: ' + str(response1.status_code) +
+                           ' ' + response1.reason)
+        url = response1.url
+        base = url[:url.rfind('/')+1]
+        response2 = http.http_post_request(base + '/content_title', auth=auth, data=data2)
+        if not http.verify(response2, None):
+            raise CCTError('Creation of collection ' + title + ' request 3 failed: ' + str(response2.status_code) +
+                           ' ' + response2.reason)
+
+        start = base[:-1].rfind('/')+1
+        return Collection(title, str(base[start:-1]))
+
+    def add_subcollections(self, titles, server, credentials, collection, logger, failures):
+        auth = tuple(credentials.split(':'))
+        base = server + "/Members/" + auth[0] + "/" + collection.get_parents_url() + "/"
+        data4 = {"form.submitted": "1",
+                 "titles": "\n".join(titles),
+                 "submit": "Add new subcollections"}
+        subcollection = '@@collection-composer-collection-subcollection'
+        response = http.http_post_request(base + subcollection, auth=auth, data=data4)
+        if not http.verify(response, logger):
+            raise CCTError('Creation of subcollection(s) ' + str(titles) + ' request failed: ' +
+                           str(response.status_code) + ' ' + response.reason)
+        text = response.text[len("close:["):-1]
+        text = text.split("},{")
+        subcollections = []
+        for subcollection_response in text:
+            subcollection_id_start = regex.search(r'nodeid\':\'', subcollection_response).end()
+            subcollection_id = subcollection_response[subcollection_id_start:
+                                                      subcollection_response.find("'", subcollection_id_start)]
+            subcollection_title_start = regex.search(r'text\':\s*\'', subcollection_response).end()
+            subcollection_title = subcollection_response[subcollection_title_start:
+                                                         subcollection_response.find("'", subcollection_title_start)]
+            subcollection = Collection(subcollection_title, subcollection_id)
+            subcollection.parent = collection
+            collection.add_member(subcollection)
+            subcollections.append(subcollection)
+        return subcollections
+
+    def add_modules_to_collection(self, modules, server, credentials, collection, logger, failures):
+        auth = tuple(credentials.split(':'))
+        data = {"form.submitted": "1",
+                "form.action": "submit"}
+        collection_url = collection.get_parents_url()
+        for module in modules:
+            if not module.valid:
+                continue
+            data["ids:list"] = module.destination_id
+            response = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection_url +
+                                              "/" + "@@collection-composer-collection-module", auth=auth, data=data)
+            if not http.verify(response, logger):
+                logger.error("Module " + module.title + " failed to be added to collection " + collection.title)
+                module.valid = False
+                failures.append((module.full_title, " adding to collection"))
+                continue
+
+    def publish_collection(self, server, credentials, collection, logger):
+        auth = tuple(credentials.split(':'))
+        publish_message = "Initial publish"
+        data1 = {"message": publish_message,
+                "form.button.publish": "Publish",
+                "form.submitted": "1"}
+        response1 = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection.id + "/collection_publish",
+                                           auth=auth, data=data1)
+        if not http.verify(response1, logger):
+            raise CCTError('Publishing collection ' + collection.title + ' request 1 failed: ' +
+                           str(response1.status_code) + ' ' + response1.reason)
+        data2 = {"message": publish_message,
+                 "publish": "Yes, Publish"}
+        response2 = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection.id +"/publishContent",
+                                           auth=auth, data=data2)
+        if not http.verify(response2, logger):
+            raise CCTError('Publishing collection ' + collection.title + ' request 2 failed: ' +
+                           str(response2.status_code) + ' ' + response2.reason)

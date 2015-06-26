@@ -90,6 +90,10 @@ def verify(response, logger):
     if response.status_code < 400:
         return True
     else:
-        logger.debug("Failed response: " + str(response.status_code) + " " + response.reason + " when sending to " +
-                     str(response.request.url) + " with data " + str(response.request.body))
+        error = "Failed response: " + str(response.status_code) + " " + response.reason + " when sending to " + \
+                str(response.request.url) + " with data " + str(response.request.body)
+        if logger is None:
+            print error
+        else:
+            logger.debug(error)
         return False

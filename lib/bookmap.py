@@ -224,6 +224,40 @@ class BookmapData:
         return thestr
 
 
+class Collection:
+    def __init__(self, title, collection_id='', parent=None):
+        self.title = title
+        self.id = collection_id
+        self.parent = parent
+        self.members = []
+
+    def add_member(self, member):
+        self.members.append(member)
+
+    def get_parents(self):
+        parents = []
+        next_parent = self.parent
+        while next_parent is not None:
+            parents.append(next_parent)
+            next_parent = next_parent.parent
+        return parents
+
+    def get_parents_url(self):
+        parents = self.get_parents()
+        url = self.id
+        if parents is None:
+            return url
+        for parent in parents:
+            url = parent.id + '/' + url
+        return url
+
+    def __str__(self):
+        members_string = ""
+        for member in self.members:
+            members_string += str(member) + ', '
+        return self.title + ' ' + self.id + ' ' + members_string
+
+
 class Workspace:
     def __init__(self, url, modules=None):
         self.url = url
