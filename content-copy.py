@@ -19,7 +19,7 @@ http_util.py
 command_line_interface.py
 """
 
-VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.3'
+VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.4'
 PRODUCTION = False
 
 def run(settings, input_file, run_options):
@@ -33,6 +33,8 @@ def run(settings, input_file, run_options):
                                           str(config['source_workgroup_column']),
                                           str(config['destination_module_ID_column']),
                                           str(config['destination_workgroup_column']),
+                                          str(config['unit_number_column']),
+                                          str(config['unit_title_column']),
                                           str(config['strip_section_numbers']))
     bookmap = Bookmap(input_file, bookmap_config, run_options)
 
@@ -71,14 +73,15 @@ def run(settings, input_file, run_options):
         if run_options.accept_roles:  # accept all pending role requests
             RoleUpdater(role_config).accept_roles(copy_config, logger, failures)
         if run_options.collections:
-            create_populate_and_publish_collection(content_creator, copy_config, bookmap, logger, failures)
+            create_populate_and_publish_collection(content_creator, copy_config, bookmap, run_options.units,
+                                                   run_options.publish_collection, run_options.dryrun, logger, failures)
         if run_options.publish:  # publish the modules
             publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures)
     except CCTError, e:
         logger.error(e.msg)
 
     if run_options.modules or run_options.workgroups:
-        output = bookmap.save()  # save output data
+        output = bookmap.save(run_options.units)  # save output data
         logger.info("See output: \033[95m" + output + "\033[0m")
     print_failures(logger, failures)
     logger.info("------- Process completed --------")
@@ -128,37 +131,61 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                                                               dryrun=run_options.dryrun)
                 if run_options.workgroups:
                     chapter_to_workgroup[module.chapter_number].add_module(module)
+                    chapter_to_workgroup[module.chapter_number].unit_number = module.unit_number
             except CCTError:
                 logger.error("Module " + module.title + " failed to be created.")
                 module.valid = False
                 failures.append((module.full_title, " creating placeholder"))
 
-def create_populate_and_publish_collection(content_creator, copy_config, bookmap, logger, failures):
-    try:
-        collection = content_creator.create_collection(copy_config.credentials, bookmap.booktitle,
-                                                       copy_config.destination_server, logger)
-    except CCTError:
-        logger.error("Failed to create the collection")
-        failures.append(("creating collection", ""))
-        return
-    for workgroup in bookmap.bookmap.workgroups:
+def create_populate_and_publish_collection(content_creator, copy_config, bookmap, units, publish_collection, dry_run,
+                                           logger, failures):
+    if not dry_run:
         try:
-            subcollections = content_creator.add_subcollections([workgroup.chapter_title],
-                                                                copy_config.destination_server, copy_config.credentials,
-                                                                collection, logger, failures)
+            collection = content_creator.create_collection(copy_config.credentials, bookmap.booktitle,
+                                                           copy_config.destination_server, logger)
         except CCTError:
-            logger.error("Failed to create subcollections for chapters")
-            failures.append(("creating subcollections", ""))
+            logger.error("Failed to create the collection")
+            failures.append(("creating collection", ""))
             return
-        content_creator.add_modules_to_collection(workgroup.modules, copy_config.destination_server,
-                                                  copy_config.credentials, subcollections[0], logger, failures)
+    unit_numbers_and_title = set()
+    units_map = {}
+    if units:
+        for module in bookmap.bookmap.modules:
+            if module.unit_number is not 'APPENDIX':
+                unit_numbers_and_title.add((module.unit_number, module.unit_title))
+        as_list = list(unit_numbers_and_title)
+        as_list.sort(key=lambda unit_number_and_title: unit_number_and_title[0])
+        if not dry_run:
+            for unit_number, unit_title in as_list:
+                unit_collection = content_creator.add_subcollections(["Unit " + unit_number + ". " + unit_title],
+                                                                     copy_config.destination_server,
+                                                                     copy_config.credentials, collection, logger)
+                units_map[unit_number] = unit_collection[0]
+    for workgroup in bookmap.bookmap.workgroups:
+        parent = collection
+        if units and workgroup.chapter_number is not '0' or workgroup.unit_number is not 'APPENDIX':
+            parent = units_map[workgroup.unit_number]
+        if dry_run:
+            try:
+                subcollections = content_creator.add_subcollections([workgroup.chapter_title],
+                                                                    copy_config.destination_server,
+                                                                    copy_config.credentials,
+                                                                    parent, logger)
+            except CCTError:
+                logger.error("Failed to create subcollections for chapters")
+                failures.append(("creating subcollections", ""))
+                return
+            content_creator.add_modules_to_collection(workgroup.modules, copy_config.destination_server,
+                                                      copy_config.credentials, subcollections[0], logger, failures)
 
-    try:
-        content_creator.publish_collection(copy_config.destination_server, copy_config.credentials, collection, logger)
-    except CCTError:
-        logger.error("Failed to publish collection")
-        failures.append(("publishing collection", ""))
-        return
+    if not dry_run and publish_collection:
+        try:
+            content_creator.publish_collection(copy_config.destination_server, copy_config.credentials, collection,
+                                               logger)
+        except CCTError:
+            logger.error("Failed to publish collection")
+            failures.append(("publishing collection", ""))
+            return
 
 
 def publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures):
@@ -248,7 +275,8 @@ def main():
     if args.chapters:
         args.chapters.sort()
     run_options = RunOptions(args.modules, args.workgroups, args.copy, args.roles, args.accept_roles, args.collection,
-                             args.publish, args.chapters, args.exclude, args.dryrun)
+                             args.units, args.publish, args.publish_collection, args.chapters, args.exclude,
+                             args.dryrun)
     run(args.settings, args.input_file, run_options)
 
 if __name__ == "__main__":

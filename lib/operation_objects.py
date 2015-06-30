@@ -21,7 +21,8 @@ class CopyConfiguration:
 
 class RunOptions:
     """ The input options that describe what the tool will do. """
-    def __init__(self, modules, workgroups, copy, roles, accept_roles, collections, publish, chapters, exclude, dryrun):
+    def __init__(self, modules, workgroups, copy, roles, accept_roles, collections, units,
+                 publish, publish_collection, chapters, exclude, dryrun):
         self.modules = modules
         self.workgroups = workgroups
         if self.workgroups:
@@ -30,7 +31,9 @@ class RunOptions:
         self.roles = roles
         self.accept_roles = accept_roles
         self.collections = collections
+        self.units = units
         self.publish = publish
+        self.publish_collection = publish_collection
         self.chapters = chapters
         self.exclude = exclude
         self.dryrun = dryrun
@@ -261,8 +264,8 @@ class ContentCreator:
         response1 = http.http_post_request(module_url + 'module_publish_description', auth=(username, password),
                                            data=data1)
         if not http.verify(response1, logger):
-            raise CCTError('publish module for ' + module_url + ' request 1 failed: ' + str(response1.status_code) + ' ' +
-                           response1.reason)
+            raise CCTError('publish module for ' + module_url + ' request 1 failed: ' + str(response1.status_code) + ' '
+                           + response1.reason)
         if new:
             data2 = {"message": "created module", "publish": "Yes, Publish"}
             response2 = http.http_post_request(module_url + 'publishContent', auth=(username, password), data=data2)
@@ -284,6 +287,7 @@ class ContentCreator:
         return html[start.end():html.find('"', start.end())]
 
     def create_collection(self, credentials, title, server, logger):
+        logger.info("Creating collection " + title)
         auth = tuple(credentials.split(':'))
         data0 = {"type_name": "Collection",
                  "workspace_factories:method": "Create New Item"}
@@ -316,11 +320,11 @@ class ContentCreator:
         if not http.verify(response2, None):
             raise CCTError('Creation of collection ' + title + ' request 3 failed: ' + str(response2.status_code) +
                            ' ' + response2.reason)
-
         start = base[:-1].rfind('/')+1
         return Collection(title, str(base[start:-1]))
 
-    def add_subcollections(self, titles, server, credentials, collection, logger, failures):
+    def add_subcollections(self, titles, server, credentials, collection, logger):
+        logger.info("Adding subcollections to collection " + collection.title + ": " + str(titles))
         auth = tuple(credentials.split(':'))
         base = server + "/Members/" + auth[0] + "/" + collection.get_parents_url() + "/"
         data4 = {"form.submitted": "1",
@@ -348,6 +352,10 @@ class ContentCreator:
         return subcollections
 
     def add_modules_to_collection(self, modules, server, credentials, collection, logger, failures):
+        modules_str = ""
+        for module in modules:
+            modules_str += module.destination_id + " "
+        logger.info("Adding modules to collection " + collection.title + ": " + modules_str)
         auth = tuple(credentials.split(':'))
         data = {"form.submitted": "1",
                 "form.action": "submit"}
@@ -365,11 +373,12 @@ class ContentCreator:
                 continue
 
     def publish_collection(self, server, credentials, collection, logger):
+        logger.info("Publishing collection " + collection.title)
         auth = tuple(credentials.split(':'))
         publish_message = "Initial publish"
         data1 = {"message": publish_message,
-                "form.button.publish": "Publish",
-                "form.submitted": "1"}
+                 "form.button.publish": "Publish",
+                 "form.submitted": "1"}
         response1 = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection.id + "/collection_publish",
                                            auth=auth, data=data1)
         if not http.verify(response1, logger):
@@ -377,8 +386,9 @@ class ContentCreator:
                            str(response1.status_code) + ' ' + response1.reason)
         data2 = {"message": publish_message,
                  "publish": "Yes, Publish"}
-        response2 = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection.id +"/publishContent",
+        response2 = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection.id + "/publishContent",
                                            auth=auth, data=data2)
         if not http.verify(response2, logger):
             raise CCTError('Publishing collection ' + collection.title + ' request 2 failed: ' +
                            str(response2.status_code) + ' ' + response2.reason)
+        # response2.

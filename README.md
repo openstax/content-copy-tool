@@ -115,8 +115,10 @@ the process consistent.
 19	   "source_workgroup_column": "Production Workgroup",
 20	   "destination_module_ID_column": "Dev Module ID",
 21	   "destination_workgroup_column": "Dev Workgroup",
-22	   "strip_section_numbers": "true"
-23	}
+22     "unit_number_column": "Unit Number",
+23     "unit_title_column": "Unit Title",
+24	   "strip_section_numbers": "true"
+25	}
 
 Lines 2 and 3 are the urls for the source and destination servers.
 Line 4 is the username:password of the user that will be used to create/upload/publish the content.
@@ -126,13 +128,12 @@ Line 13 is the absolute path to the tool. To find this, open a terminal within t
 pwd 
 The output of this command is the working directory (the path to the tool) and will be the value for this line. You should only have to edit this line once. 
 Line 14 is the name of the log file for the tool, you should not need to change this, but it might be valuable for reference later.
-Line 15 - 21 are the titles of the columns in the input file. The values for these lines must match the column titles in the input file (csv/tsv). However, if the input file does not have one of the optional columns (lines 18 - 21), the names can be whatever you wish them to be. It may be valuable to give them descriptive names that indicate the server they are on, for example. Keep in mind that the input file is a delimiter-separated-values files, so do not use a comma if the file is a .csv or a tab if the file is a .tsv.
-Line 22 tells the tool if you would like to remove section numbers from the titles of modules. For example, if the input file has a module titled “1.2 What is Psychology?” then you may want to strip the section numbers. If you choose to do so, the section number will be treated as a separate attribute of the module, in this example the title will become “What is Psychology?”. If you choose not to, the section numbers will be treated as part of the module name. If you want to remove section numbers from the title, set the value to true. If you do NOT want to remove section numbers, set the value to false.
+Line 15 - 23 are the titles of the columns in the input file. The values for these lines must match the column titles in the input file (csv/tsv). However, if the input file does not have one of the optional columns (lines 18 - 23), the names can be whatever you wish them to be. It may be valuable to give them descriptive names that indicate the server they are on, for example. Keep in mind that the input file is a delimiter-separated-values files, so do not use a comma if the file is a .csv or a tab if the file is a .tsv.
+Line 25 tells the tool if you would like to remove section numbers from the titles of modules. For example, if the input file has a module titled “1.2 What is Psychology?” then you may want to strip the section numbers. If you choose to do so, the section number will be treated as a separate attribute of the module, in this example the title will become “What is Psychology?”. If you choose not to, the section numbers will be treated as part of the module name. If you want to remove section numbers from the title, set the value to true. If you do NOT want to remove section numbers, set the value to false.
 
 
 
 ####Install requirements
 - python 2.7.6+
-- selenium (for selenium portion)
 - requests
 - requests[security]

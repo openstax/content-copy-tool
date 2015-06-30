@@ -49,26 +49,6 @@ The title of the copy map (*.out) is not important to the tool.
 The script will generate the content-copy map file if the copy
 flag is not set. The file will be used to copy the content later with this
 tool. Just load it in as the input file instead of a csv.
-
--w, --workspaces
-    This flag is only useful if the input file is a '*.csv' or '*.tsv'. It
-    requires that the input file have chapter titles.
--c, --copy
-    This flag will work if the input file is a '*.csv', '*.tsv', or '*.out'. It
-    requires that the input file have source module IDs (to copy from).
--r, --roles
-    This flag only works in conjunction with the -c, --copy flag.
--p, --publish
-    This flag will only work with '*.csv' and '*.tsv' input files if the -c,
-    --copy flag is set. Alternatively, if the input file is a '*.out', this flag
-    can run by itself.
--a, --chapters
-    This flag is used to specify which chapters to operate over in the input
-    file. This requires that the input file be a '*.csv' or '*.tsv'. The use of
-    this flag is: -a 0 1 2 3 5 6 8 9  or  --chapters 4 5 6 1 2 9 10
---exclude-chapters
-    This flag acts as the inverse of the -a, --chapters flag, values of this
-    flag will be chapters that are NOT processed.
 """
 
 def get_parser(version):
@@ -103,9 +83,13 @@ def get_parser(version):
     control_args.add_argument("-o", "--collection", action="store_true", dest="collection",
                               help="Use this flag to create collections for each chapter in the book and a parent"
                                    "collection for the entire book.")
+    control_args.add_argument("-u", "--units", action="store_true", dest="units", help="Use this flag if the bookmap "
+                              "has units and you want to create collections for units")
     control_args.add_argument("-p", "--publish", action="store_true", dest="publish",
                               help="Use this flag to publish the modules after copying content to the "
                                    "destination server.")
+    control_args.add_argument("--publish-collection", action="store_true", dest="publish_collection",
+                              help="Use this flag to publish the collection that is created.")
     control_args.add_argument("-a", "--chapters", action="store", dest="chapters", nargs="*",
                               help="Which chapters to operate on (optional).")
     control_args.add_argument("--exclude-chapters", action="store", dest="exclude", nargs="*",
@@ -124,4 +108,7 @@ def verify_args(args):
               "in creators, maintainers, or rightholders."
     if args.roles and not args.copy:
         print "ERROR: using -r, --roles requires the use of -c, --copy."
+        sys.exit()
+    if args.publish_collection and not args.collection:
+        print "ERROR: using --publish-collection requires the use of -o, --collection."
         sys.exit()
