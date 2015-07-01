@@ -165,7 +165,7 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
         parent = collection
         if units and workgroup.chapter_number is not '0' or workgroup.unit_number is not 'APPENDIX':
             parent = units_map[workgroup.unit_number]
-        if dry_run:
+        if not dry_run:
             try:
                 subcollections = content_creator.add_subcollections([workgroup.chapter_title],
                                                                     copy_config.destination_server,
