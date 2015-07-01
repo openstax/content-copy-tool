@@ -22,6 +22,7 @@ command_line_interface.py
 VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.4'
 PRODUCTION = False
 
+
 def run(settings, input_file, run_options):
     config = util.parse_json(settings)
 
@@ -42,9 +43,9 @@ def run(settings, input_file, run_options):
     source_server = str(config['source_server'])
     destination_server = str(config['destination_server'])
     # ensure server addresses have 'http[s]://' prepended
-    if not regex.match('https?://', source_server):
+    if not regex.match(r'https?://', source_server):
         source_server = 'http://' + source_server
-    if not regex.match('https?://', destination_server):
+    if not regex.match(r'https?://', destination_server):
         destination_server = 'http://' + destination_server
     credentials = str(config['destination_credentials'])
     copy_config = CopyConfiguration(source_server, destination_server, credentials)
@@ -85,6 +86,7 @@ def run(settings, input_file, run_options):
         logger.info("See output: \033[95m" + output + "\033[0m")
     print_failures(logger, failures)
     logger.info("------- Process completed --------")
+
 
 def create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures):
     """
@@ -137,8 +139,10 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                 module.valid = False
                 failures.append((module.full_title, " creating placeholder"))
 
+
 def create_populate_and_publish_collection(content_creator, copy_config, bookmap, units, publish_collection, dry_run,
                                            logger, failures):
+    collection = None
     if not dry_run:
         try:
             collection = content_creator.create_collection(copy_config.credentials, bookmap.booktitle,
@@ -146,7 +150,7 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
         except CCTError:
             logger.error("Failed to create the collection")
             failures.append(("creating collection", ""))
-            return
+            return None
     unit_numbers_and_title = set()
     units_map = {}
     if units:
@@ -185,7 +189,7 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
         except CCTError:
             logger.error("Failed to publish collection")
             failures.append(("publishing collection", ""))
-            return
+            return None
 
 
 def publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures):
@@ -214,9 +218,11 @@ def publish_modules_post_copy(copier, content_creator, run_options, credentials,
                     module.valid = False
                     failures.append((module.full_title, "publishing module"))
 
+
 def print_failures(logger, failures):
     for failure in failures:
         logger.error("\033[95mFailed" + str(failure[1]) + " - \033[91m" + str(failure[0]) + "\033[0m")
+
 
 def user_confirm(logger, copy_config, bookmap, run_options, role_config):
     """
@@ -267,6 +273,7 @@ def user_confirm(logger, copy_config, bookmap, run_options, role_config):
             break
         elif var is '2':
             sys.exit()
+
 
 def main():
     args = cli.get_parser(VERSION).parse_args()

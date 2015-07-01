@@ -6,7 +6,7 @@ install_requires = (
     )
 
 setup(name='content-copy-tool',
-      version='0.3',
+      version='0.4',
       py_modules=['lib'],
       install_requires=install_requires,
       )
