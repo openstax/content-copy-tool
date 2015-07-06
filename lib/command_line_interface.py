@@ -29,9 +29,6 @@ Chapter Number,Chapter Title,Module Title,Module ID
 
 and the title of the file should be [the title of the book].csv
 Alternatively, the tool can accept a .tsv (tab separated values) file.
-The Module ID is only required if the -c, --copy flag is set (if you
-want to copy content to another server) the data in this column define the
-source modules for the copy.
 
 Example usage:
 ./cct.py -s settings.json -i Psychology.csv -a 0 1 2 3 -wcr
@@ -39,16 +36,6 @@ Example usage:
 This will copy chapters 0, 1, 2, and 3 from the Psychology book according to
 the csv (or tsv) file, creating workgroups for each chapter, and edit the roles
 according to the settings described by settings.json
-
-If the input file is not a bookmap (*.csv or *.tsv), it should be a copy map
-(*.out). The format of this file should be:
-[destination workspace url] [destination module ID] [source module ID]
-
-The title of the copy map (*.out) is not important to the tool.
-
-The script will generate the content-copy map file if the copy
-flag is not set. The file will be used to copy the content later with this
-tool. Just load it in as the input file instead of a csv.
 """
 
 def get_parser(version):
@@ -81,7 +68,7 @@ def get_parser(version):
     control_args.add_argument("--accept-roles", action="store_true", dest="accept_roles",
                               help="Use this flag to automatically accept the roles requests.")
     control_args.add_argument("-o", "--collection", action="store_true", dest="collection",
-                              help="Use this flag to create collections for each chapter in the book and a parent"
+                              help="Use this flag to create collections for each chapter in the book and a parent "
                                    "collection for the entire book.")
     control_args.add_argument("-u", "--units", action="store_true", dest="units", help="Use this flag if the bookmap "
                               "has units and you want to create collections for units")
