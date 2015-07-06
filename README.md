@@ -3,11 +3,6 @@
 ####Current Status
 The content-copy-tool is currently in development. As of 6-9-15, the tool can create placeholder content, copy content, edit roles, and publish modules.
 
-####TODO
-- different credentials for source and destination - what will be source and destination
-- name uniqueness: workspaces & modules
-- config-ify license and url's and stuff
-
 ####Context
 The Content-Copy-Tool is a python tool that provides configurable automation for copying content from one cnx server to another. The tool can create placeholder modules (and workgroups), copy content into those placeholders, edit the roles on the content during the copy, and publish\* modules. These can also be run independently\*\*.
 
@@ -93,7 +88,7 @@ so be sure to name them [filename].json.
 Let’s look at the anatomy of the settings file. The highlighted text is text that you may wish to edit to configure the 
 tool. Of course you can edit other portions, but the highlighted parts represent best practices for keeping the rest of 
 the process consistent.
-
+```
 1	{
 2	   "destination_server": "legacydev.cnx.org", 
 3	   "source_server": "legacy.cnx.org",
@@ -119,7 +114,7 @@ the process consistent.
 23     "unit_title_column": "Unit Title",
 24	   "strip_section_numbers": "true"
 25	}
-
+```
 Lines 2 and 3 are the urls for the source and destination servers.
 Line 4 is the username:password of the user that will be used to create/upload/publish the content.
 Lines 6 - 8 are the users that will be entered as the corresponding roles, in this example, for all content processed with this settings file (assuming the alter roles feature is enabled) the creator will be set to user2, the maintainers will be set to user2 and user1, and the rightsholders will be set to user2 and user3. Remember, the value in these lines is a list of usernames, even if only one user is the creator/maintainer/rightsholder the value is a list (with only one username in it), see line 6 as an example.
@@ -131,9 +126,17 @@ Line 14 is the name of the log file for the tool, you should not need to change 
 Line 15 - 23 are the titles of the columns in the input file. The values for these lines must match the column titles in the input file (csv/tsv). However, if the input file does not have one of the optional columns (lines 18 - 23), the names can be whatever you wish them to be. It may be valuable to give them descriptive names that indicate the server they are on, for example. Keep in mind that the input file is a delimiter-separated-values files, so do not use a comma if the file is a .csv or a tab if the file is a .tsv.
 Line 25 tells the tool if you would like to remove section numbers from the titles of modules. For example, if the input file has a module titled “1.2 What is Psychology?” then you may want to strip the section numbers. If you choose to do so, the section number will be treated as a separate attribute of the module, in this example the title will become “What is Psychology?”. If you choose not to, the section numbers will be treated as part of the module name. If you want to remove section numbers from the title, set the value to true. If you do NOT want to remove section numbers, set the value to false.
 
+####Installing the Tool
+Installing the tool is pretty simple, especially if you have setuptools installed. If so, just run 
+```
+python setup.py
+```
+from the tool's top directory.
 
+If not, install setuptools. This can often be done by using pip, easy_install, or another package manager.
 
-####Install requirements
-- python 2.7.6+
+(uses python 2.7.6+)
+
+####Libraries used
 - requests
 - requests[security]
