@@ -1,10 +1,13 @@
 #Content Copy Tool
 
 ####Current Status
-The content-copy-tool is currently in development. As of 6-9-15, the tool can create placeholder content, copy content, edit roles, and publish modules.
+The content-copy-tool is currently in development. As of 6-9-15, the tool can create placeholder content, copy content, 
+edit roles, and publish modules.
 
 ####Context
-The Content-Copy-Tool is a python tool that provides configurable automation for copying content from one cnx server to another. The tool can create placeholder modules (and workgroups), copy content into those placeholders, edit the roles on the content during the copy, and publish\* modules. These can also be run independently\*\*.
+The Content-Copy-Tool is a python tool that provides configurable automation for copying content from one cnx server to 
+another. The tool can create placeholder modules (and workgroups), copy content into those placeholders, edit the roles 
+on the content during the copy, and publish\* modules. These can also be run independently\*\*.
 
 \*\* Editing roles requires copying.
 
@@ -115,16 +118,35 @@ the process consistent.
 24	   "strip_section_numbers": "true"
 25	}
 ```
-Lines 2 and 3 are the urls for the source and destination servers.
-Line 4 is the username:password of the user that will be used to create/upload/publish the content.
-Lines 6 - 8 are the users that will be entered as the corresponding roles, in this example, for all content processed with this settings file (assuming the alter roles feature is enabled) the creator will be set to user2, the maintainers will be set to user2 and user1, and the rightsholders will be set to user2 and user3. Remember, the value in these lines is a list of usernames, even if only one user is the creator/maintainer/rightsholder the value is a list (with only one username in it), see line 6 as an example.
-Lines 10 and 11 are the usernames and passwords for the users that are used in the role altering that are NOT the user in line 4. Note the slight difference in formatting, here the username is the key and the password is the value.
-Line 13 is the absolute path to the tool. To find this, open a terminal within the tool’s top directory, (you should see content-copy.py, setup.py, and the lib/ subdirectory), run the command 
+* Lines 2 and 3 are the urls for the source and destination servers.
+* Line 4 is the username:password of the user that will be used to create/upload/publish the content.
+* Lines 6 - 8 are the users that will be entered as the corresponding roles, in this example, for all content processed 
+with this settings file (assuming the alter roles feature is enabled) the creator will be set to user2, the maintainers
+will be set to user2 and user1, and the rightsholders will be set to user2 and user3. Remember, the value in these lines
+ is a list of usernames, even if only one user is the creator/maintainer/rightsholder the value is a list (with only one
+  username in it), see line 6 as an example.
+* Lines 10 and 11 are the usernames and passwords for the users that are used in the role altering that are NOT the user
+ in line 4. Note the slight difference in formatting, here the username is the key and the password is the value.
+* Line 13 is the absolute path to the tool. To find this, open a terminal within the tool’s top directory, (you should 
+see content-copy.py, setup.py, and the lib/ subdirectory), run the command 
+```
 pwd 
-The output of this command is the working directory (the path to the tool) and will be the value for this line. You should only have to edit this line once. 
-Line 14 is the name of the log file for the tool, you should not need to change this, but it might be valuable for reference later.
-Line 15 - 23 are the titles of the columns in the input file. The values for these lines must match the column titles in the input file (csv/tsv). However, if the input file does not have one of the optional columns (lines 18 - 23), the names can be whatever you wish them to be. It may be valuable to give them descriptive names that indicate the server they are on, for example. Keep in mind that the input file is a delimiter-separated-values files, so do not use a comma if the file is a .csv or a tab if the file is a .tsv.
-Line 25 tells the tool if you would like to remove section numbers from the titles of modules. For example, if the input file has a module titled “1.2 What is Psychology?” then you may want to strip the section numbers. If you choose to do so, the section number will be treated as a separate attribute of the module, in this example the title will become “What is Psychology?”. If you choose not to, the section numbers will be treated as part of the module name. If you want to remove section numbers from the title, set the value to true. If you do NOT want to remove section numbers, set the value to false.
+```
+The output of this command is the working directory (the path to the tool) and will be the value for this line. You 
+should only have to edit this line once. 
+* Line 14 is the name of the log file for the tool, you should not need to change this, but it might be valuable for 
+reference later.
+* Line 15 - 23 are the titles of the columns in the input file. The values for these lines must match the column titles 
+in the input file (csv/tsv). However, if the input file does not have one of the optional columns (lines 18 - 23), the 
+names can be whatever you wish them to be. It may be valuable to give them descriptive names that indicate the server 
+they are on, for example. Keep in mind that the input file is a delimiter-separated-values files, so do not use a comma 
+if the file is a .csv or a tab if the file is a .tsv.
+* Line 25 tells the tool if you would like to remove section numbers from the titles of modules. For example, if the 
+input file has a module titled “1.2 What is Psychology?” then you may want to strip the section numbers. If you choose 
+to do so, the section number will be treated as a separate attribute of the module, in this example the title will 
+become “What is Psychology?”. If you choose not to, the section numbers will be treated as part of the module name. If 
+you want to remove section numbers from the title, set the value to true. If you do NOT want to remove section numbers, 
+set the value to false.
 
 ####Installing the Tool
 Installing the tool is pretty simple, especially if you have setuptools installed. If so, just run 
