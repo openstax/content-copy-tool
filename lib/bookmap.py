@@ -27,7 +27,6 @@ class BookmapConfiguration:
         self.destination_workgroup_column = destination_workgroup_column
         self.unit_number_column = unit_number_column
         self.unit_title_column = unit_title_column
-        print self.unit_number_column
         self.strip_section_numbers = False
         if strip_section_numbers.lower() in ['yes', 'true']:
             self.strip_section_numbers = True
@@ -106,7 +105,7 @@ class Bookmap:
                 chapter_number_and_title = self.get_chapter_number_and_title(chapter)
                 chapter_title = chapter_number_and_title.split(' ', 1)[1]
                 wgtitle = self.booktitle + ' - ' + chapter_number_and_title
-                wgtitle += str(datetime.datetime.now())  # REMOVE IN PRODUCTION
+                # wgtitle += str(datetime.datetime.now())  # REMOVE IN PRODUCTION
                 bookmap.add_workgroup(Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title))
         return bookmap
 
@@ -167,7 +166,9 @@ class Bookmap:
 
     def save(self, units):
         """ Saves the bookmap object to a file with same format as the input file. """
-        save_file = self.filename + "OUT"
+
+        parts = self.filename.split('.')
+        save_file = parts[0] + "_output." + parts[1]
         columns = [self.config.chapter_number_column,
                    self.config.chapter_title_column,
                    self.config.module_title_column,
@@ -184,7 +185,7 @@ class Bookmap:
             all = []
             all.append(columns)
             for module in self.bookmap.modules:
-                all.append(self.bookmap.output(module))
+                all.append(self.bookmap.output(module, units))
             writer.writerows(all)
         return save_file
 
@@ -201,7 +202,7 @@ class BookmapData:
     def add_workgroup(self, workgroup):
         self.workgroups.append(workgroup)
 
-    def output(self, module):
+    def output(self, module, units):
         """
         Compiles the output data for the given module.
 
@@ -209,7 +210,7 @@ class BookmapData:
             A list of the data that goes in the output file for this module.
         """
         out = []
-        if module.unit_number is not '' or module.unit_number is not None:
+        if units:
             out.append(module.unit_number)
             out.append(module.unit_title)
         out.append(module.chapter_number)

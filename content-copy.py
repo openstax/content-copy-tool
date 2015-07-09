@@ -5,7 +5,7 @@ import lib.command_line_interface as cli
 from lib.operation_objects import *
 from lib.bookmap import *
 from lib.role_updates import *
-
+import subprocess
 """
 This script is the main script of the content-copy-tool, it requires the
 presence of the following utility files to execute properly.
@@ -71,7 +71,7 @@ def run(settings, input_file, run_options):
             create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures)
         if run_options.copy:  # copy content
             copier.copy_content(role_config, run_options, logger, failures)
-        if run_options.accept_roles:  # accept all pending role requests
+        if run_options.accept_roles and not run_options.dryrun:  # accept all pending role requests
             RoleUpdater(role_config).accept_roles(copy_config, logger, failures)
         if run_options.collections:
             create_populate_and_publish_collection(content_creator, copy_config, bookmap, run_options.units,
@@ -86,6 +86,7 @@ def run(settings, input_file, run_options):
         logger.info("See output: \033[95m" + output + "\033[0m")
     print_failures(logger, failures)
     logger.info("------- Process completed --------")
+    return bookmap.booktitle
 
 
 def create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures):
@@ -155,7 +156,7 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
     units_map = {}
     if units:
         for module in bookmap.bookmap.modules:
-            if module.unit_number is not 'APPENDIX':
+            if module.unit_number != 'APPENDIX':
                 unit_numbers_and_title.add((module.unit_number, module.unit_title))
         as_list = list(unit_numbers_and_title)
         as_list.sort(key=lambda unit_number_and_title: unit_number_and_title[0])
@@ -167,20 +168,24 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
                 units_map[unit_number] = unit_collection[0]
     for workgroup in bookmap.bookmap.workgroups:
         parent = collection
-        if units and workgroup.chapter_number is not '0' or workgroup.unit_number is not 'APPENDIX':
+        if units and workgroup.chapter_number != '0' and workgroup.unit_number != 'APPENDIX':
             parent = units_map[workgroup.unit_number]
         if not dry_run:
             try:
-                subcollections = content_creator.add_subcollections([workgroup.chapter_title],
-                                                                    copy_config.destination_server,
-                                                                    copy_config.credentials,
-                                                                    parent, logger)
+                if workgroup.chapter_number != '0' and workgroup.unit_number != 'APPENDIX':
+                    subcollections = content_creator.add_subcollections([workgroup.chapter_title],
+                                                                        copy_config.destination_server,
+                                                                        copy_config.credentials,
+                                                                        parent, logger)
+                    module_parent = subcollections[0]
+                else:
+                    module_parent = collection
             except CCTError:
                 logger.error("Failed to create subcollections for chapters")
                 failures.append(("creating subcollections", ""))
                 return
             content_creator.add_modules_to_collection(workgroup.modules, copy_config.destination_server,
-                                                      copy_config.credentials, subcollections[0], logger, failures)
+                                                      copy_config.credentials, module_parent, logger, failures)
 
     if not dry_run and publish_collection:
         try:
@@ -259,6 +264,8 @@ def user_confirm(logger, copy_config, bookmap, run_options, role_config):
             logger.info("Maintainers: \033[95m" + ', '.join(role_config.maintainers) + "\033[0m")
             logger.info("Rightsholders: \033[95m" + ', '.join(role_config.rightholders) + "\033[0m")
     logger.info("Create collections? \033[95m" + str(run_options.collections) + "\033[0m")
+    if run_options.collections:
+        logger.info("Units? \033[95m" + str(run_options.units) + "\033[0m")
     logger.info("Publish content? \033[95m" + str(run_options.publish) + "\033[0m")
     if run_options.dryrun:
         logger.info("------------NOTE: \033[95mDRY RUN\033[0m-----------------")
@@ -284,7 +291,14 @@ def main():
     run_options = RunOptions(args.modules, args.workgroups, args.copy, args.roles, args.accept_roles, args.collection,
                              args.units, args.publish, args.publish_collection, args.chapters, args.exclude,
                              args.dryrun)
-    run(args.settings, args.input_file, run_options)
+    try:
+        booktitle = run(args.settings, args.input_file, run_options)
+    except Exception, e:
+        print "Error: " + e.msg
+    app = '"Terminal"'
+    msg = '"Content Copy for '+booktitle+' has completed, see Terminal for results."'
+    bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"
+    subprocess.call([bashCommand], shell=True)
 
 if __name__ == "__main__":
     main()
