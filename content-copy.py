@@ -73,7 +73,7 @@ def run(settings, input_file, run_options):
             copier.copy_content(role_config, run_options, logger, failures)
         if run_options.accept_roles and not run_options.dryrun:  # accept all pending role requests
             RoleUpdater(role_config).accept_roles(copy_config, logger, failures)
-        if run_options.collections:
+        if run_options.collections:  # create and populate the collection
             create_populate_and_publish_collection(content_creator, copy_config, bookmap, run_options.units,
                                                    run_options.publish_collection, run_options.dryrun, logger, failures)
         if run_options.publish:  # publish the modules

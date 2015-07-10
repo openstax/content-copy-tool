@@ -42,6 +42,11 @@ cd ~/Documents/content-copy-tool
 (see Enabling “Open Terminal At Folder” Service section for how to do this
 through Finder). Note: this command will
 bring you to the top level directory of the tool from anywhere in a terminal.
+* The following step requires the python package setuptools to run, if it is not 
+installed, install it using
+```
+easy_install setuptools
+```
 * Run the following command to set up the tool. This script will install all the
 necessary packages for using the tool.
 ```
