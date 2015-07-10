@@ -1,0 +1,25 @@
+{
+    "destination_server": "legacydev.cnx.org",
+    "source_server": "legacy.cnx.org",
+    "destination_credentials": "user2:user2password",
+
+    "authors":["user2"],
+    "maintainers":["user2", "user1"],
+    "rightsholders":["user3"],
+
+    "user1":"user1password",
+    "user3":"user3password",
+
+    "path_to_tool": "/Users/openstax/Documents/content-copy-tool",
+    "logfile": "content-copy.log",
+    "chapter_title_column": "Chapter Title",
+    "chapter_number_column": "Chapter Number",
+    "module_title_column": "Module Title",
+    "source_module_ID_column": "Production Module ID",
+    "source_workgroup_column": "Production Workgroup",
+    "destination_module_ID_column": "Dev Module ID",
+    "destination_workgroup_column": "Dev Workgroup",
+    "unit_number_column": "Unit Number",
+    "unit_title_column": "Unit Title",
+    "strip_section_numbers": "true"
+}
