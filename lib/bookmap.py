@@ -173,7 +173,6 @@ class Bookmap:
                    self.config.chapter_title_column,
                    self.config.module_title_column,
                    self.config.source_module_ID_column,
-                   self.config.source_workgroup_column,
                    self.config.destination_module_ID_column,
                    self.config.destination_workgroup_column]
         if units:
@@ -220,7 +219,6 @@ class BookmapData:
             module_title_entry = module.section_number + ' ' + module_title_entry
         out.append(module_title_entry)
         out.append(module.source_id)
-        out.append(module.source_workspace_url)
         out.append(module.destination_id)
         out.append(module.destination_workspace_url)
         return out
