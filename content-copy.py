@@ -291,10 +291,11 @@ def main():
     run_options = RunOptions(args.modules, args.workgroups, args.copy, args.roles, args.accept_roles, args.collection,
                              args.units, args.publish, args.publish_collection, args.chapters, args.exclude,
                              args.dryrun)
+    booktitle = ""
     try:
         booktitle = run(args.settings, args.input_file, run_options)
     except Exception, e:
-        print "Error: " + e.msg
+        print "Error: " + str(e)
     app = '"Terminal"'
     msg = '"Content Copy for '+booktitle+' has completed, see Terminal for results."'
     bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"

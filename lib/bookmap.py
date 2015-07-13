@@ -160,7 +160,7 @@ class Bookmap:
     def get_chapter_number_and_title(self, chapter_num):
         """ Gets the title of the provided chapter number in the provide bookmap """
         for module in list(self.bookmap_raw):
-            if module[self.config.chapter_number_column] is str(chapter_num):
+            if module[self.config.chapter_number_column] == str(chapter_num):
                 return module[self.config.chapter_number_column] + ' ' + module[self.config.chapter_title_column]
         return ' '
 
