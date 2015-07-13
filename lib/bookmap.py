@@ -153,7 +153,7 @@ class Bookmap:
 
     def is_valid(self, module):
         """ Determines if a module is valid or invalid """
-        if module[self.config.module_title_column] is '' or module[self.config.module_title_column] is ' ':
+        if module[self.config.module_title_column] == '' or module[self.config.module_title_column] == ' ':
             return False
         return True
 
@@ -226,7 +226,7 @@ class BookmapData:
         return out
 
     def get_chapter_title(self, chap_number):
-        titles = [workgroup.chapter_title for workgroup in self.workgroups if workgroup.chapter_number is chap_number]
+        titles = [workgroup.chapter_title for workgroup in self.workgroups if workgroup.chapter_number == chap_number]
         if titles:
             return titles[0]
         return ""
@@ -331,7 +331,7 @@ class CNXModule(object):
         return self.section_number.split('.')[0]
 
     def full_title(self):
-        if self.section_number is not '' or self.section_number is not ' ' or self.section_number is not None:
+        if self.section_number != '' and self.section_number != ' ' and self.section_number is not None:
             return self.section_number + ' ' + self.title
         else:
             return self.title
