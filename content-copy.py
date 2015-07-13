@@ -69,6 +69,7 @@ def run(settings, input_file, run_options):
     try:
         if run_options.modules or run_options.workgroups:  # create placeholders
             create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures)
+            output = bookmap.save(run_options.units)  # save output data
         if run_options.copy:  # copy content
             copier.copy_content(role_config, run_options, logger, failures)
         if run_options.accept_roles and not run_options.dryrun:  # accept all pending role requests
@@ -79,10 +80,10 @@ def run(settings, input_file, run_options):
         if run_options.publish:  # publish the modules
             publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures)
     except CCTError, e:
+        output = bookmap.save(run_options.units, True)
         logger.error(e.msg)
 
     if run_options.modules or run_options.workgroups:
-        output = bookmap.save(run_options.units)  # save output data
         logger.info("See output: \033[95m" + output + "\033[0m")
     print_failures(logger, failures)
     logger.info("------- Process completed --------")
@@ -146,6 +147,7 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
     collection = None
     if not dry_run:
         try:
+            logger.debug("Creating collection.")
             collection = content_creator.create_collection(copy_config.credentials, bookmap.booktitle,
                                                            copy_config.destination_server, logger)
         except CCTError:
@@ -167,6 +169,7 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
                                                                      copy_config.credentials, collection, logger)
                 units_map[unit_number] = unit_collection[0]
     for workgroup in bookmap.bookmap.workgroups:
+        logger.debug("Added subcollections and modules to collection.")
         parent = collection
         if units and workgroup.chapter_number != '0' and workgroup.unit_number != 'APPENDIX':
             parent = units_map[workgroup.unit_number]

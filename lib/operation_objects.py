@@ -115,7 +115,14 @@ class Copier:
                         module.valid = False
                         failures.append((module.full_title(), " updating roles"))
 
-                    self.clean_zip(module.source_id + '.zip')  # remove index.cnxml.html from zipfile
+                    try:
+                        self.clean_zip(module.source_id + '.zip')  # remove index.cnxml.html from zipfile
+                    except Exception, e:
+                        logger.debug("Error: " + str(e))
+                        logger.error("Failed cleaning module zipfile " + module.title)
+                        module.valid = False
+                        failures.append((module.full_title(), " cleaning module zipfile "))
+                        continue
 
                     res, mpart = http.http_upload_file(module.source_id + '.xml', module.source_id + '.zip',
                                                        module.destination_workspace_url + "/" + module.destination_id +

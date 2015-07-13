@@ -164,11 +164,13 @@ class Bookmap:
                 return module[self.config.chapter_number_column] + ' ' + module[self.config.chapter_title_column]
         return ' '
 
-    def save(self, units):
+    def save(self, units, error=False):
         """ Saves the bookmap object to a file with same format as the input file. """
 
         parts = self.filename.split('.')
         save_file = parts[0] + "_output." + parts[1]
+        if error:
+            save_file = parts[0] + "_error." + parts[1]
         columns = [self.config.chapter_number_column,
                    self.config.chapter_title_column,
                    self.config.module_title_column,
