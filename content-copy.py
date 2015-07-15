@@ -176,7 +176,9 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
     units_map = {}
     if units:
         for module in bookmap.bookmap.modules:
-            if module.chapter_number in bookmap.chapters and module.unit_number != 'APPENDIX':
+            if module.chapter_number in bookmap.chapters \
+                    and module.unit_number != 'APPENDIX' \
+                    and module.unit_number != "":
                 unit_numbers_and_title.add((module.unit_number, module.unit_title))
         as_list = list(unit_numbers_and_title)
         as_list.sort(key=lambda unit_number_and_title: unit_number_and_title[0])
