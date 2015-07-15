@@ -76,7 +76,7 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
     multi.makemultipart(open(xmlfile), open(zipfile), open(abs_path, 'w'))
     boundary_code = extract_boundary(abs_path)
     userAndPass = b64encode(credentials).decode("ascii")
-    headers = {"Content-Type": "multipart/related;boundary=" + boundary_code + ";type=application/atom + xml",
+    headers = {"Content-Type": "multipart/related;boundary=%s;type=application/atom + xml" % boundary_code,
                "In-Progress": "true", "Accept-Encoding": "zip", "Authorization": 'Basic %s' % userAndPass}
     req = urllib2.Request(url)
     connection = httplib.HTTPConnection(req.get_host())
@@ -90,8 +90,8 @@ def verify(response, logger):
     if response.status_code < 400:
         return True
     else:
-        error = "Failed response: " + str(response.status_code) + " " + response.reason + " when sending to " + \
-                str(response.request.url) + " with data " + str(response.request.body)
+        error = "Failed response:%s %s when sending to %s with data %s" % \
+                (response.status_code, response.reason, response.request.url, response.request.body)
         if logger is None:
             print error
         else:

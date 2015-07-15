@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import sys
+import traceback
 import lib.util as util
 import lib.command_line_interface as cli
 from lib.operation_objects import *
@@ -19,72 +20,80 @@ http_util.py
 command_line_interface.py
 """
 
-VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.4'
+VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.6'
 PRODUCTION = False
 
 
 def run(settings, input_file, run_options):
     config = util.parse_json(settings)
 
+    logfile = config['logfile']
+    logger = util.init_logger(logfile)
+    logger.debug("Logger is up and running.")
+
     # Bookmap
     bookmap_config = BookmapConfiguration(str(config['chapter_number_column']),
                                           str(config['chapter_title_column']),
                                           str(config['module_title_column']),
                                           str(config['source_module_ID_column']),
-                                          str(config['source_workgroup_column']),
                                           str(config['destination_module_ID_column']),
                                           str(config['destination_workgroup_column']),
                                           str(config['unit_number_column']),
                                           str(config['unit_title_column']),
                                           str(config['strip_section_numbers']))
+    logger.debug("Bookmap configuration has been created")
     bookmap = Bookmap(input_file, bookmap_config, run_options)
+    logger.debug("Bookmap has been created")
 
     # Copy Configuration and Copier
     source_server = str(config['source_server'])
     destination_server = str(config['destination_server'])
     # ensure server addresses have 'http[s]://' prepended
     if not regex.match(r'https?://', source_server):
-        source_server = 'http://' + source_server
+        source_server = "http://%s" % source_server
     if not regex.match(r'https?://', destination_server):
-        destination_server = 'http://' + destination_server
+        destination_server = "http://%s" % destination_server
     credentials = str(config['destination_credentials'])
     copy_config = CopyConfiguration(source_server, destination_server, credentials)
     copier = Copier(copy_config, bookmap.bookmap, str(config['path_to_tool']))
-
+    logger.debug("Copier has been created")
     # Role Configuration
     role_config = RoleConfiguration(list(config['authors']),
                                     list(config['maintainers']),
                                     list(config['rightsholders']), config, credentials)
-
+    logger.debug("Role configuration has been created.")
     # Content_creator
     content_creator = ContentCreator(destination_server, credentials)
-
-    logfile = config['logfile']
-    logger = util.init_logger(logfile)
-
+    logger.debug("ContentCreator has been created.")
     failures = []
 
     user_confirm(logger, copy_config, bookmap, run_options, role_config)  # Check before you run
 
     try:
+        logger.debug("Beginning processing.")
         if run_options.modules or run_options.workgroups:  # create placeholders
             create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures)
             output = bookmap.save(run_options.units)  # save output data
+            logger.debug("Finished created placeholders, output has been saved.")
         if run_options.copy:  # copy content
             copier.copy_content(role_config, run_options, logger, failures)
+            logger.debug("Finished copying content.")
         if run_options.accept_roles and not run_options.dryrun:  # accept all pending role requests
             RoleUpdater(role_config).accept_roles(copy_config, logger, failures)
+            logger.debug("Finished updating roles.")
         if run_options.collections:  # create and populate the collection
             create_populate_and_publish_collection(content_creator, copy_config, bookmap, run_options.units,
                                                    run_options.publish_collection, run_options.dryrun, logger, failures)
+            logger.debug("Finished creating and populating the collection.")
         if run_options.publish:  # publish the modules
             publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures)
+            logger.debug("Finished publishing modules.")
     except CCTError, e:
         output = bookmap.save(run_options.units, True)
         logger.error(e.msg)
 
     if run_options.modules or run_options.workgroups:
-        logger.info("See output: \033[95m" + output + "\033[0m")
+        logger.info("See output: \033[95m%s\033[0m" % output)
     print_failures(logger, failures)
     logger.info("------- Process completed --------")
     return bookmap.booktitle
@@ -112,9 +121,12 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
             try:
                 content_creator.run_create_workgroup(workgroup, copy_config.destination_server, copy_config.credentials,
                                                      logger, dryrun=run_options.dryrun)
-            except CCTError:
-                logger.error("Workgroup " + workgroup.title + " failed to be created, skipping chapter " + 
-                             workgroup.chapter_number)
+            except (CCTError, Exception) as e:
+                if type(e) is not CCTError:
+                    logger.error("Problematic Error")
+                    logger.debug(traceback.format_exc())
+                logger.error("Workgroup %s failed to be created, skipping chapter %s" %
+                             (workgroup.title, workgroup.chapter_number))
                 bookmap.chapters.remove(workgroup.chapter_number)
                 bookmap.bookmap.workgroups.remove(workgroup)
                 for module in bookmap.bookmap.modules:
@@ -136,10 +148,13 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                 if run_options.workgroups:
                     chapter_to_workgroup[module.chapter_number].add_module(module)
                     chapter_to_workgroup[module.chapter_number].unit_number = module.unit_number
-            except CCTError:
-                logger.error("Module " + module.title + " failed to be created.")
+            except (CCTError, Exception) as e:
+                if type(e) is not CCTError:
+                    logger.error("Problematic Error")
+                    logger.debug(traceback.format_exc())
+                logger.error("Module %s failed to be created. " % module.title)
                 module.valid = False
-                failures.append((module.full_title, " creating placeholder"))
+                failures.append((module.full_title(), " creating placeholder"))
 
 
 def create_populate_and_publish_collection(content_creator, copy_config, bookmap, units, publish_collection, dry_run,
@@ -150,7 +165,10 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
             logger.debug("Creating collection.")
             collection = content_creator.create_collection(copy_config.credentials, bookmap.booktitle,
                                                            copy_config.destination_server, logger)
-        except CCTError:
+        except (CCTError, Exception) as e:
+            if type(e) is not CCTError:
+                logger.error("Problematic Error")
+                logger.debug(traceback.format_exc())
             logger.error("Failed to create the collection")
             failures.append(("creating collection", ""))
             return None
@@ -158,43 +176,54 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
     units_map = {}
     if units:
         for module in bookmap.bookmap.modules:
-            if module.unit_number != 'APPENDIX':
+            if module.chapter_number in bookmap.chapters and module.unit_number != 'APPENDIX':
                 unit_numbers_and_title.add((module.unit_number, module.unit_title))
         as_list = list(unit_numbers_and_title)
         as_list.sort(key=lambda unit_number_and_title: unit_number_and_title[0])
         if not dry_run:
             for unit_number, unit_title in as_list:
-                unit_collection = content_creator.add_subcollections(["Unit " + unit_number + ". " + unit_title],
+                unit_collection = content_creator.add_subcollections(["Unit %s. %s" % (unit_number, unit_title)],
                                                                      copy_config.destination_server,
                                                                      copy_config.credentials, collection, logger)
                 units_map[unit_number] = unit_collection[0]
     for workgroup in bookmap.bookmap.workgroups:
-        logger.debug("Added subcollections and modules to collection.")
-        parent = collection
-        if units and workgroup.chapter_number != '0' and workgroup.unit_number != 'APPENDIX':
-            parent = units_map[workgroup.unit_number]
-        if not dry_run:
-            try:
-                if workgroup.chapter_number != '0' and workgroup.unit_number != 'APPENDIX':
-                    subcollections = content_creator.add_subcollections([workgroup.chapter_title],
-                                                                        copy_config.destination_server,
-                                                                        copy_config.credentials,
-                                                                        parent, logger)
-                    module_parent = subcollections[0]
-                else:
-                    module_parent = collection
-            except CCTError:
-                logger.error("Failed to create subcollections for chapters")
-                failures.append(("creating subcollections", ""))
-                return
-            content_creator.add_modules_to_collection(workgroup.modules, copy_config.destination_server,
-                                                      copy_config.credentials, module_parent, logger, failures)
+        if workgroup.chapter_number in bookmap.chapters:
+            logger.debug("Added subcollections and modules to collection.")
+            parent = collection
+            if not dry_run:
+                if units and workgroup.chapter_number != '0' \
+                         and workgroup.unit_number != 'APPENDIX' \
+                         and workgroup.unit_number != "":
+                    parent = units_map[workgroup.unit_number]
+                try:
+                    if workgroup.chapter_number != '0' \
+                       and workgroup.unit_number != 'APPENDIX' \
+                       and workgroup.unit_number != "":
+                        subcollections = content_creator.add_subcollections([workgroup.chapter_title],
+                                                                            copy_config.destination_server,
+                                                                            copy_config.credentials,
+                                                                            parent, logger)
+                        module_parent = subcollections[0]
+                    else:
+                        module_parent = collection
+                except (CCTError, Exception) as e:
+                    if type(e) is not CCTError:
+                        logger.error("Problematic Error")
+                        logger.debug(traceback.format_exc())
+                    logger.error("Failed to create subcollections for chapters")
+                    failures.append(("creating subcollections", ""))
+                    return
+                content_creator.add_modules_to_collection(workgroup.modules, copy_config.destination_server,
+                                                          copy_config.credentials, module_parent, logger, failures)
 
     if not dry_run and publish_collection:
         try:
             content_creator.publish_collection(copy_config.destination_server, copy_config.credentials, collection,
                                                logger)
-        except CCTError:
+        except (CCTError, Exception) as e:
+            if type(e) is not CCTError:
+                logger.error("Problematic Error")
+                logger.debug(traceback.format_exc())
             logger.error("Failed to publish collection")
             failures.append(("publishing collection", ""))
             return None
@@ -210,26 +239,30 @@ def publish_modules_post_copy(copier, content_creator, run_options, credentials,
         run_options - the input running options, what will the tool do
         credentials - the user's credentials
         logger - the tool's logger
+        failures - the working list of failures
 
     Returns:
         None
     """
     for module in copier.copy_map.modules:
         if module.valid and module.chapter_number in run_options.chapters:
-            logger.info("Publishing module: " + module.destination_id + " - " + module.full_title())
+            logger.info("Publishing module: %s - %s" % (module.destination_id, module.full_title()))
             if not run_options.dryrun:
                 try:
-                    content_creator.publish_module(module.destination_workspace_url + '/' + module.destination_id + '/',
+                    content_creator.publish_module("%s/%s/" % (module.destination_workspace_url, module.destination_id),
                                                    credentials, logger, False)
-                except CCTError:
-                    logger.error("Failed to publish module " + module.destination_id)
+                except (CCTError, Exception) as e:
+                    if type(e) is not CCTError:
+                        logger.error("Problematic Error")
+                        logger.debug(traceback.format_exc())
+                    logger.error("Failed to publish module %s", module.destination_id)
                     module.valid = False
-                    failures.append((module.full_title, "publishing module"))
+                    failures.append((module.full_title(), "publishing module"))
 
 
 def print_failures(logger, failures):
     for failure in failures:
-        logger.error("\033[95mFailed" + str(failure[1]) + " - \033[91m" + str(failure[0]) + "\033[0m")
+        logger.error("\033[95mFailed %s - \033[91m%s\033[0m", failure[1], failure[0])
 
 
 def user_confirm(logger, copy_config, bookmap, run_options, role_config):
@@ -239,37 +272,39 @@ def user_confirm(logger, copy_config, bookmap, run_options, role_config):
     """
     logger.info("-------- Summary ---------------------------------------")
     if run_options.copy:  # confirm each entry in the bookmap has a source module ID.
+        last_title = "!ITS THE FIRST ONE!"
         for module in bookmap.bookmap.modules:
             if module.chapter_number in bookmap.chapters and (module.source_id is '' or module.source_id is ' ' or
                                                               module.source_id is None):
-                logger.warn("\033[91mInput file has missing source module IDs.\033[0m")
-    logger.info("Source: \033[95m" + copy_config.source_server + "\033[0m")
-    logger.info("Destination: \033[95m" + copy_config.destination_server + "\033[0m")
+                logger.warn("\033[91mInput file has missing source module ID for module [%s]"
+                            "- the module after [%s].\033[0m" % (module.title, last_title))
+            last_title = module.title
+    logger.info("Source: \033[95m%s\033[0m" % copy_config.source_server)
+    logger.info("Destination: \033[95m%s\033[0m" % copy_config.destination_server)
     if PRODUCTION:
-        logger.info("User: \033[95m" + copy_config.credentials.split(':')[0] + "\033[0m")
+        logger.info("User: \033[95m%s\033[0m" % copy_config.credentials.split(':')[0])
     else:
-        logger.info("Destination Credentials: \033[95m" + copy_config.credentials + "\033[0m")
-    logger.info("Content: \033[95m" + bookmap.booktitle + "\033[0m")
-    logger.info("Which Chapters: \033[95m" + ', '.join(bookmap.chapters) + "\033[0m")
-    logger.info("Number of Modules: \033[95m" + 
-                str(len([module for module in bookmap.bookmap.modules if module.chapter_number in bookmap.chapters])) + 
-                "\033[0m")
-    logger.info("Create placeholders?: \033[95m" + str(run_options.modules or run_options.workgroups) + "\033[0m")
+        logger.info("Destination Credentials: \033[95m%s\033[0m" % copy_config.credentials)
+    logger.info("Content: \033[95m%s\033[0m" % bookmap.booktitle)
+    logger.info("Which Chapters: \033[95m%s\033[0m" % ', '.join(bookmap.chapters))
+    logger.info("Number of Modules: \033[95m%s\033[0m" %
+                len([module for module in bookmap.bookmap.modules if module.chapter_number in bookmap.chapters]))
+    logger.info("Create placeholders?: \033[95m%s\033[0m" % run_options.modules or run_options.workgroups)
     if run_options.modules:
-        logger.info("Create workgroups? \033[95m" + str(run_options.workgroups) + "\033[0m")
-    logger.info("Copy content? \033[95m" + str(run_options.copy) + "\033[0m")
+        logger.info("Create workgroups? \033[95m%s\033[0m" % run_options.workgroups)
+    logger.info("Copy content? \033[95m%s\033[0m" % run_options.copy)
     if run_options.copy:
-        logger.info("Edit roles? \033[95m" + str(run_options.roles) + "\033[0m")
+        logger.info("Edit roles? \033[95m%s\033[0m" % run_options.roles)
     if run_options.accept_roles:
-        logger.info("Accept roles? \033[95m" + str(run_options.accept_roles) + "\033[0m")
+        logger.info("Accept roles? \033[95m%s\033[0m" % run_options.accept_roles)
     if run_options.roles or run_options.accept_roles:
-            logger.info("Authors: \033[95m" + ', '.join(role_config.creators) + "\033[0m")
-            logger.info("Maintainers: \033[95m" + ', '.join(role_config.maintainers) + "\033[0m")
-            logger.info("Rightsholders: \033[95m" + ', '.join(role_config.rightholders) + "\033[0m")
-    logger.info("Create collections? \033[95m" + str(run_options.collections) + "\033[0m")
+            logger.info("Authors: \033[95m%s\033[0m" % ', '.join(role_config.creators))
+            logger.info("Maintainers: \033[95m%s\033[0m" % ', '.join(role_config.maintainers))
+            logger.info("Rightsholders: \033[95m%s\033[0m" % ', '.join(role_config.rightholders))
+    logger.info("Create collections? \033[95m%s\033[0m" % run_options.collections)
     if run_options.collections:
-        logger.info("Units? \033[95m" + str(run_options.units) + "\033[0m")
-    logger.info("Publish content? \033[95m" + str(run_options.publish) + "\033[0m")
+        logger.info("Units? \033[95m%s\033[0m" % run_options.units)
+    logger.info("Publish content? \033[95m%s\033[0m" % run_options.publish)
     if run_options.dryrun:
         logger.info("------------NOTE: \033[95mDRY RUN\033[0m-----------------")
 
@@ -298,7 +333,8 @@ def main():
     try:
         booktitle = run(args.settings, args.input_file, run_options)
     except Exception, e:
-        print "Error: " + str(e)
+        print "Error: %s", e
+        print(traceback.format_exc())
     app = '"Terminal"'
     msg = '"Content Copy for '+booktitle+' has completed, see Terminal for results."'
     bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"

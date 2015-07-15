@@ -13,7 +13,6 @@ class BookmapConfiguration:
                        chapter_title_column,
                        module_title_column,
                        source_module_ID_column,
-                       source_workgroup_column,
                        destination_module_ID_column,
                        destination_workgroup_column,
                        unit_number_column,
@@ -22,7 +21,6 @@ class BookmapConfiguration:
         self.chapter_title_column = chapter_title_column
         self.module_title_column = module_title_column
         self.source_module_ID_column = source_module_ID_column
-        self.source_workgroup_column = source_workgroup_column
         self.destination_module_ID_column = destination_module_ID_column
         self.destination_workgroup_column = destination_workgroup_column
         self.unit_number_column = unit_number_column
@@ -83,38 +81,36 @@ class Bookmap:
             section_number, title = self.strip_section_numbers(row[self.config.module_title_column])
             module = CNXModule(title, section_number)
             # Read in available data from input file TODO make more extensible
-            self.safe_process_column('module.source_id = row[self.config.source_module_ID_column]', 
-                                     row, module)
-            self.safe_process_column('module.source_workspace_url = row[self.config.source_workgroup_column]', 
-                                     row, module)
-            self.safe_process_column('module.destination_id = row[self.config.destination_module_ID_column]', 
-                                     row, module)
-            self.safe_process_column('module.destination_workspace_url = row[self.config.destination_workgroup_column]',
-                                     row, module)
-            self.safe_process_column('module.chapter_number = row[self.config.chapter_number_column]', 
-                                     row, module)
-            self.safe_process_column('module.chapter_title = row[self.config.chapter_title_column]', 
-                                     row, module)
-            self.safe_process_column('module.unit_number = row[self.config.unit_number_column]',
-                                     row, module),
-            self.safe_process_column('module.unit_title = row[self.config.unit_title_column]',
-                                     row, module)
+            cmds = [('module.source_id', 'row[self.config.source_module_ID_column]', 'default'),
+                    ('module.destination_id', 'row[self.config.destination_module_ID_column]', 'default'),
+                    ('module.destination_id', 'row[self.config.destination_module_ID_column]', 'default'),
+                    ('module.destination_workspace_url', 'row[self.config.destination_workgroup_column]', 'default'),
+                    ('module.chapter_number', 'row[self.config.chapter_number_column]', 'default'),
+                    ('module.chapter_title', 'row[self.config.chapter_title_column]', 'default'),
+                    ('module.unit_number', 'row[self.config.unit_number_column]', 'default'),
+                    ('module.unit_title', 'row[self.config.unit_title_column]', '""')
+                    ]
+            for cmd in cmds:
+                self.safe_process_column(cmd[0], cmd[1], row, module, cmd[2])
             bookmap.add_module(module)
         if self.workgroups:
             for chapter in self.chapters:
                 chapter_number_and_title = self.get_chapter_number_and_title(chapter)
                 chapter_title = chapter_number_and_title.split(' ', 1)[1]
-                wgtitle = self.booktitle + ' - ' + chapter_number_and_title
+
+                wgtitle = "%s - %s" % (self.booktitle, chapter_number_and_title)
                 # wgtitle += str(datetime.datetime.now())  # REMOVE IN PRODUCTION
                 bookmap.add_workgroup(Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title))
         return bookmap
 
-    def safe_process_column(self, expression, row, module):
+    def safe_process_column(self, lhs, rhs, row, module, default=None):
         """ Catch the KeyError because not all columns are required. """
         try:
-            exec expression
+            exec "%s = %s" % (lhs, rhs)
         except KeyError:
-            pass  # then we don't have that data, move on
+            if default is None:
+                return  # then we don't have that data, move on
+            self.safe_process_column(lhs, default, row, module)
 
     def parse_book_title(self, filepath):
         """
@@ -141,10 +137,13 @@ class Bookmap:
 
     def strip_section_numbers(self, title):
         """ Strips the section numbers from the module title """
-        if regex.match('[0-9]', title):
-            num = title[:str.index(title, ' '):]
-            title = title[str.index(title, ' ') + 1:]
-            return num, title
+        try:
+            if regex.match('[0-9]', title):
+                num = title[:str.index(title, ' '):]
+                title = title[str.index(title, ' ') + 1:]
+                return num, title
+        except Exception, e:
+            print "\033[91mError stripping section number from: [%s]. leaving title as is. \033[0m" % title
         return '', title
 
     def remove_invalid_modules(self):
@@ -161,16 +160,16 @@ class Bookmap:
         """ Gets the title of the provided chapter number in the provide bookmap """
         for module in list(self.bookmap_raw):
             if module[self.config.chapter_number_column] == str(chapter_num):
-                return module[self.config.chapter_number_column] + ' ' + module[self.config.chapter_title_column]
-        return ' '
+                return "%s %s" % (module[self.config.chapter_number_column], module[self.config.chapter_title_column])
+        return " "
 
     def save(self, units, error=False):
         """ Saves the bookmap object to a file with same format as the input file. """
 
         parts = self.filename.split('.')
-        save_file = parts[0] + "_output." + parts[1]
+        save_file = "%s_output.%s" % (parts[0], parts[1])
         if error:
-            save_file = parts[0] + "_error." + parts[1]
+            save_file = "%s_error.%s" % (parts[0], parts[1])
         columns = [self.config.chapter_number_column,
                    self.config.chapter_title_column,
                    self.config.module_title_column,
@@ -218,7 +217,7 @@ class BookmapData:
         out.append(module.chapter_title)
         module_title_entry = module.title
         if module.section_number:
-            module_title_entry = module.section_number + ' ' + module_title_entry
+            module_title_entry = "%s %s" % (module.section_number, module_title_entry)
         out.append(module_title_entry)
         out.append(module.source_id)
         out.append(module.destination_id)
@@ -237,7 +236,7 @@ class BookmapData:
             thestr += str(workgroup)
         thestr += '\n'
         for module in self.modules:
-            thestr += str(module) + '\n'
+            thestr += "%s\n" % module
         return thestr
 
 
@@ -265,14 +264,14 @@ class Collection:
         if parents is None:
             return url
         for parent in parents:
-            url = parent.id + '/' + url
+            url = "%s/%s" % (parent.id, url)
         return url
 
     def __str__(self):
         members_string = ""
         for member in self.members:
-            members_string += str(member) + ', '
-        return self.title + ' ' + self.id + ' ' + members_string
+            members_string += "%s, " % member
+        return "%s %s %s" % (self.title, self.id, members_string)
 
 
 class Workspace:
@@ -300,14 +299,13 @@ class Workgroup(Workspace):
         modules_str = ""
         for module in self.modules:
             modules_str += '\n\t' + str(module)
-        return self.id + ' ' + self.title + ' ' + self.chapter_number + ' ' + self.chapter_title + ' ' + self.url + \
-            ' ' + modules_str
+        return "%s %s %s %s %s %s" % \
+               (self.id, self.title, self.chapter_number, self.chapter_title, self.url, modules_str)
 
 
 class CNXModule(object):
     def __init__(self, title,
                        section_number='',
-                       source_workspace_url='',
                        source_id='',
                        destination_workspace_url='',
                        destination_id='',
@@ -317,7 +315,6 @@ class CNXModule(object):
                        unit_title=''):
         self.title = title
         self.section_number = section_number
-        self.source_workspace_url = source_workspace_url
         self.source_id = source_id
         self.destination_workspace_url = destination_workspace_url
         self.destination_id = destination_id
@@ -331,11 +328,11 @@ class CNXModule(object):
         return self.section_number.split('.')[0]
 
     def full_title(self):
-        if self.section_number != '' and self.section_number != ' ' and self.section_number is not None:
-            return self.section_number + ' ' + self.title
+        if self.section_number != '' and self.section_number != ' ' or self.section_number is not None:
+            return "%s %s" % (self.section_number, self.title)
         else:
             return self.title
 
     def __str__(self):
-        return self.section_number + ' ' + self.title + ' ' + self.source_workspace_url + ' ' + self.source_id + \
-            ' ' + self.destination_workspace_url + ' ' + self.destination_id
+        return "%s %s %s %s %s" % \
+               (self.section_number, self.title, self.source_id, self.destination_workspace_url, self.destination_id)

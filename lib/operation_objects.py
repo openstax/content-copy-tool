@@ -1,6 +1,7 @@
 from shutil import rmtree
 from os import remove, path, walk
 import re as regex
+import traceback
 import zipfile
 import http_util as http
 from role_updates import RoleUpdater
@@ -57,7 +58,7 @@ class Copier:
 
     def remove_file_from_dir(self, directory, filename):
         """ Removes the given file from the given directory. """
-        remove(directory + '/' + filename)
+        remove("%s/%s" % (directory, filename))
 
     def zipdir(self, file_path, zipfilename):
         """ Zips the given directory into a zip file with the given name. """
@@ -75,7 +76,7 @@ class Copier:
             if regex.search(r'.*/index.cnxml.html', filename):
                 dir = self.extract_zip(zipfilename)
                 remove(zipfilename)
-                zipdir = self.path_to_tool + '/' + dir
+                zipdir = "%s/%s" % (self.path_to_tool, dir)
                 self.remove_file_from_dir(zipdir, 'index.cnxml.html')
                 self.zipdir(zipdir, zipfilename)
                 break
@@ -98,42 +99,47 @@ class Copier:
             if module.valid and module.chapter_number in run_options.chapters:
                 files = []
                 if module.source_id is None:
-                    logger.error("Module " + module.title + " has no source id")
+                    logger.error("Module %s has no source id" % module.title)
                     failures.append((module.full_title(), ": module has not source id"))
                     continue
-                logger.info("Copying content for module: " + str(module.source_id) + " - " + module.full_title())
+                logger.info("Copying content for module: %s - %s" % (module.source_id, module.full_title()))
                 if not run_options.dryrun:
-                    files.append(http.http_download_file(self.config.source_server + '/content/' + module.source_id +
-                                                         '/latest/module_export?format=zip', module.source_id, '.zip'))
-                    files.append(http.http_download_file(self.config.source_server + '/content/' + module.source_id +
-                                                         '/latest/rhaptos-deposit-receipt', module.source_id, '.xml'))
+                    files.append(http.http_download_file("%s/content/%s/latest/module_export?format=zip" %
+                                                         (self.config.source_server, module.source_id),
+                                                         module.source_id, '.zip'))
+                    files.append(http.http_download_file("%s/content/%s/latest/rhaptos-deposit-receipt" %
+                                                         (self.config.source_server, module.source_id),
+                                                         module.source_id, '.xml'))
                     try:
                         if run_options.roles:
-                            RoleUpdater(role_config).run_update_roles(module.source_id + '.xml')
-                    except CCTError:
-                        logger.error("Failure updating roles on module " + module.source_id)
+                            RoleUpdater(role_config).run_update_roles("%s.xml" % module.source_id)
+                    except (CCTError, Exception) as e:
+                        if type(e) is not CCTError:
+                            logger.error("Problematic Error")
+                            logger.debug(traceback.format_exc())
+                        logger.error("Failure updating roles on module %s" % module.source_id)
                         module.valid = False
                         failures.append((module.full_title(), " updating roles"))
 
                     try:
-                        self.clean_zip(module.source_id + '.zip')  # remove index.cnxml.html from zipfile
+                        self.clean_zip("%s.zip" % module.source_id)  # remove index.cnxml.html from zipfile
                     except Exception, e:
-                        logger.debug("Error: " + str(e))
-                        logger.error("Failed cleaning module zipfile " + module.title)
+                        logger.debug(traceback.format_exc())
+                        logger.error("Failed cleaning module zipfile %s" % module.title)
                         module.valid = False
                         failures.append((module.full_title(), " cleaning module zipfile "))
                         continue
 
-                    res, mpart = http.http_upload_file(module.source_id + '.xml', module.source_id + '.zip',
-                                                       module.destination_workspace_url + "/" + module.destination_id +
-                                                       '/sword', self.config.credentials)
+                    res, mpart = http.http_upload_file("%s.xml" % module.source_id, "%s.zip" % module.source_id,
+                                                       "%s/%s/sword" % (module.destination_workspace_url,
+                                                                        module.destination_id), self.config.credentials)
                     files.append(mpart)
                     # clean up temp files
                     if res.status < 400:
                         for temp_file in files:
                             remove(temp_file)
                     else:
-                        logger.error("Failed copying module " + module.title)
+                        logger.error("Failed copying module %s" % module.title)
                         module.valid = False
                         failures.append((module.full_title(), " copying module "))
 
@@ -156,7 +162,7 @@ class ContentCreator:
         Returns:
           the ID of the created workgroup object, id='wg00000' if dryrun
         """
-        logger.info("Creating workgroup: " + workgroup.title + " on " + server)
+        logger.info("Creating workgroup: %s on %s" % (workgroup.title, server))
         if not dryrun:
             self.create_workgroup(workgroup, server, credentials, logger)
 
@@ -173,9 +179,9 @@ class ContentCreator:
         """
         username, password = credentials.split(':')
         data = {"title": workgroup.title, "form.button.Reference": "Create", "form.submitted": "1"}
-        response = http.http_post_request(server + '/create_workgroup', auth=(username, password), data=data)
+        response = http.http_post_request("%s/create_workgroup" % server, auth=(username, password), data=data)
         if not http.verify(response, logger):
-            raise CCTError(str(response.status_code) + ' ' + response.reason)
+            raise CCTError("%s %s" % (response.status_code, response.reason))
 
         # extract workgroup ID
         url = response.url.encode('UTF-8')
@@ -204,13 +210,13 @@ class ContentCreator:
         Modifies:
             The given module is added the destination_workspace_url and destination_module_id
         """
-        info_str = "Creating module: " + module.title + " on " + server
+        info_str = "Creating module: %s on %s" % (module.title, server)
         if workgroup_url != 'Members/':
-            info_str += " in workgroup: " + workgroup_url
+            info_str += " in workgroup: %s" % workgroup_url
         else:
             workgroup_url += credentials.split(':')[0]
-            workgroup_url = server + '/' + workgroup_url
-            info_str += " in Personal workspace (" + workgroup_url + ")"
+            workgroup_url = "%s/%s" % (server, workgroup_url)
+            info_str += " in Personal workspace (%s)" % workgroup_url
         logger.info(info_str)
         if not dryrun:
             temp_url = self.create_module(module.title, credentials, workgroup_url, logger)
@@ -234,9 +240,9 @@ class ContentCreator:
 
         response1 = http.http_post_request(workspace_url, auth=auth, data=data1)
         if not http.verify(response1, logger):
-            raise CCTError('create module for' + title + ' request 1 failed: ' + str(response1.status_code) + ' ' +
-                           response1.reason)
-        cc_license = self.get_license(response1)
+            raise CCTError("create module for %s request 1 failed: %s %s" %
+                           (title, response1.status_code, response1.reason))
+        cc_license = self.get_license(response1, logger)
         data2 = {"agree": "on",
                  "form.button.next": "Next >>",
                  "license": cc_license,
@@ -249,14 +255,14 @@ class ContentCreator:
                  "form.submitted": "1"}
         response2 = http.http_post_request(response1.url.encode('UTF-8'), auth=auth, data=data2)
         if not http.verify(response2, logger):
-            raise CCTError('create module for ' + title + ' request 2 failed: ' + str(response2.status_code) + ' ' +
-                           response2.reason)
+            raise CCTError("create module for %s request 2 failed: %s %s" %
+                           (title, response2.status_code, response2.reason))
         r2url = response2.url.encode('UTF-8')
         create_url = r2url[:regex.search('cc_license', r2url).start()]
-        response3 = http.http_post_request(create_url + 'content_title', auth=auth, data=data3)
+        response3 = http.http_post_request("%scontent_title" % create_url, auth=auth, data=data3)
         if not http.verify(response3, logger):
-            raise CCTError('create module for ' + title + ' request 3 failed: ' + str(response3.status_code) + ' ' +
-                           response3.reason)
+            raise CCTError("create module for %s request 3 failed: %s %s" %
+                           (title, response3.status_code, response3.reason))
         return create_url
 
     def publish_module(self, module_url, credentials, logger, new=True):
@@ -268,17 +274,18 @@ class ContentCreator:
         """
         username, password = credentials.split(':')
         data1 = {"message": "created module", "form.button.publish": "Publish", "form.submitted": "1"}
-        response1 = http.http_post_request(module_url + 'module_publish_description', auth=(username, password),
+        response1 = http.http_post_request("%smodule_publish_description" % module_url, auth=(username, password),
                                            data=data1)
         if not http.verify(response1, logger):
-            raise CCTError('publish module for ' + module_url + ' request 1 failed: ' + str(response1.status_code) + ' '
-                           + response1.reason)
+
+            raise CCTError("publish module for %s request 1 failed: %s %s" %
+                           (module_url, response1.status_code, response1.reason))
         if new:
             data2 = {"message": "created module", "publish": "Yes, Publish"}
-            response2 = http.http_post_request(module_url + 'publishContent', auth=(username, password), data=data2)
+            response2 = http.http_post_request("%spublishContent" % module_url, auth=(username, password), data=data2)
             if not http.verify(response2, logger):
-                raise CCTError('publish module for ' + module_url + ' request 2 failed: ' + str(response1.status_code) +
-                               ' ' + response1.reason)
+                raise CCTError("publish module for %s request 2 failed: %s %s" %
+                               (module_url, response1.status_code, response1.reason))
 
             # extract module ID
             url = response2.url.encode('UTF-8')
@@ -288,21 +295,26 @@ class ContentCreator:
         else:
             return module_url[module_url.rfind('/', 0, -1) + 1:-1], module_url
 
-    def get_license(self, response):
-        html = str(response.text)
-        start = regex.search(r'<input\s*type="hidden"\s*name="license"\s*value="', html)
-        return html[start.end():html.find('"', start.end())]
+    def get_license(self, response, logger):
+        try:
+            html = response.text.encode('UTF-8', 'ignore')
+            start = regex.search(r'<input\s*type="hidden"\s*name="license"\s*value="', html)
+            return html[start.end():html.find('"', start.end())]
+        except Exception, e:
+            logger.debug("Failed to get license, defaulting to cc-by 4.0: %s" % e)
+            logger.debug(traceback.format_exc())
+            return "http://creativecommons.org/licenses/by/4.0/"
 
     def create_collection(self, credentials, title, server, logger):
-        logger.info("Creating collection " + title)
+        logger.info("Creating collection %s" % title)
         auth = tuple(credentials.split(':'))
         data0 = {"type_name": "Collection",
                  "workspace_factories:method": "Create New Item"}
-        response0 = http.http_post_request(server + "/Members/" + auth[0], auth=auth, data=data0)
+        response0 = http.http_post_request("%s/Members/%s" % (server, auth[0]), auth=auth, data=data0)
         if not http.verify(response0, logger):
-            raise CCTError('Creation of collection ' + title + ' request 2 failed: ' + str(response0.status_code) +
-                           ' ' + response0.reason)
-        cc_license = self.get_license(response0)
+            raise CCTError("Creation of collection %s request 2 failed: %s %s" %
+                           (title, response0.status_code, response0.reason))
+        cc_license = self.get_license(response0, logger)
         data1 = {"agree": "on",
                  "form.button.next": "Next >>",
                  "license": cc_license,
@@ -319,29 +331,29 @@ class ContentCreator:
                  "form.submitted": "1"}
         response1 = http.http_post_request(response0.url, auth=auth, data=data1)
         if not http.verify(response1, None):
-            raise CCTError('Creation of collection ' + title + ' request 2 failed: ' + str(response1.status_code) +
-                           ' ' + response1.reason)
+            raise CCTError("Creation of collection %s request 2 failed: %s %s" %
+                           (title, response1.status_code, response1.reason))
         url = response1.url
         base = url[:url.rfind('/')+1]
-        response2 = http.http_post_request(base + '/content_title', auth=auth, data=data2)
+        response2 = http.http_post_request("%s/content_title" % base, auth=auth, data=data2)
         if not http.verify(response2, None):
-            raise CCTError('Creation of collection ' + title + ' request 3 failed: ' + str(response2.status_code) +
-                           ' ' + response2.reason)
+            raise CCTError("Creation of collection %s request 3 failed: %s %s" %
+                           (title, response2.status_code, response2.reason))
         start = base[:-1].rfind('/')+1
         return Collection(title, str(base[start:-1]))
 
     def add_subcollections(self, titles, server, credentials, collection, logger):
-        logger.info("Adding subcollections to collection " + collection.title + ": " + str(titles))
+        logger.info("Adding subcollections to collection %s: %s" % (collection.title, titles))
         auth = tuple(credentials.split(':'))
-        base = server + "/Members/" + auth[0] + "/" + collection.get_parents_url() + "/"
+        base = "%s/Members/%s/%s/" % (server, auth[0], collection.get_parents_url())
         data4 = {"form.submitted": "1",
                  "titles": "\n".join(titles),
                  "submit": "Add new subcollections"}
         subcollection = '@@collection-composer-collection-subcollection'
         response = http.http_post_request(base + subcollection, auth=auth, data=data4)
         if not http.verify(response, logger):
-            raise CCTError('Creation of subcollection(s) ' + str(titles) + ' request failed: ' +
-                           str(response.status_code) + ' ' + response.reason)
+            raise CCTError("Creation of subcollection(s) %s request failed: %s %s" %
+                           (titles, response.status_code, response.reason))
         text = response.text[len("close:["):-1]
         text = text.split("},{")
         subcollections = []
@@ -361,8 +373,8 @@ class ContentCreator:
     def add_modules_to_collection(self, modules, server, credentials, collection, logger, failures):
         modules_str = ""
         for module in modules:
-            modules_str += module.destination_id + " "
-        logger.info("Adding modules to collection " + collection.title + ": " + modules_str)
+            modules_str += "%s " % module.destination_id
+        logger.info("Adding modules to collection %s: %s" % (collection.title, modules_str))
         auth = tuple(credentials.split(':'))
         data = {"form.submitted": "1",
                 "form.action": "submit"}
@@ -371,31 +383,30 @@ class ContentCreator:
             if not module.valid:
                 continue
             data["ids:list"] = module.destination_id
-            response = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection_url +
-                                              "/" + "@@collection-composer-collection-module", auth=auth, data=data)
+            response = http.http_post_request("%s/Members/%s/%s/@@collection-composer-collection-module" %
+                                              (server, auth[0], collection_url), auth=auth, data=data)
             if not http.verify(response, logger):
-                logger.error("Module " + module.title + " failed to be added to collection " + collection.title)
+                logger.error("Module %s failed to be added to collection %s" % (module.title, collection.title))
                 module.valid = False
-                failures.append((module.full_title, " adding to collection"))
+                failures.append((module.full_title(), " adding to collection"))
                 continue
 
     def publish_collection(self, server, credentials, collection, logger):
-        logger.info("Publishing collection " + collection.title)
+        logger.info("Publishing collection %s" % collection.title)
         auth = tuple(credentials.split(':'))
         publish_message = "Initial publish"
         data1 = {"message": publish_message,
                  "form.button.publish": "Publish",
                  "form.submitted": "1"}
-        response1 = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection.id + "/collection_publish",
+        response1 = http.http_post_request("%s/Members/%s/%s/collection_publish" % (server, auth[0], collection.id),
                                            auth=auth, data=data1)
         if not http.verify(response1, logger):
-            raise CCTError('Publishing collection ' + collection.title + ' request 1 failed: ' +
-                           str(response1.status_code) + ' ' + response1.reason)
+            raise CCTError("Publishing collection %s request 1 failed: %s %s" %
+                           (collection.title, response1.status_code, response1.reason))
         data2 = {"message": publish_message,
                  "publish": "Yes, Publish"}
-        response2 = http.http_post_request(server + "/Members/" + auth[0] + "/" + collection.id + "/publishContent",
+        response2 = http.http_post_request("%s/Members/%s/%s/publishContent" % (server, auth[0], collection.id),
                                            auth=auth, data=data2)
         if not http.verify(response2, logger):
-            raise CCTError('Publishing collection ' + collection.title + ' request 2 failed: ' +
-                           str(response2.status_code) + ' ' + response2.reason)
-        # response2.
+            raise CCTError("Publishing collection %s request 2 failed: %s %s" %
+                           (collection.title, response2.status_code, response2.reason))

@@ -34,7 +34,7 @@ class ColorStrippingFormatter(logging.Formatter):
         return super(ColorStrippingFormatter, self).format(record)
 
     def remove_color_codes(self, msg):
-        return regex.sub(r'\033\[\d*m', '', msg)
+        return regex.sub(r'\033\[\d*m', "", msg)
 
 def parse_json(input):
     """ Returns the parsed json input """

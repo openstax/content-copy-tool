@@ -2,6 +2,7 @@ from os import close, remove
 from shutil import move
 from tempfile import mkstemp
 import re as regex
+import traceback
 from util import CCTError
 import http_util as http
 
@@ -90,10 +91,9 @@ class RoleUpdater:
     def get_pending_roles_request_ids(self, copy_config, credentials, logger):
         ids = []
         auth = tuple(credentials.split(':'))
-        response1 = http.http_get_request(copy_config.destination_server + '/collaborations', auth=auth)
+        response1 = http.http_get_request("%s/collaborations" % copy_config.destination_server, auth=auth)
         if not http.verify(response1, logger):
-            raise CCTError("FAILURE getting pending role requests: " + str(response1.status_code) +
-                              " " + response1.reason)
+            raise CCTError("FAILURE getting pending role requests: %s %s" % (response1.status_code, response1.reason))
         else:
             html = response1.text
             pattern = regex.compile('name="ids:list" value=".*"')
@@ -116,7 +116,7 @@ class RoleUpdater:
         for user in users:
             try:
                 password = self.config.settings[user]
-                users_and_creds.append(user + ":" + password)
+                users_and_creds.append("%s:%s" % (user, password))
             except KeyError:
                 if not (self.config.credentials.split(':')[0] == user):
                     raise CCTError("Could not find credentials for user involved in roles, check settings file for: "
@@ -126,19 +126,23 @@ class RoleUpdater:
     def accept_roles(self, copy_config, logger, failures):
         try:
             users = self.get_users_of_roles()
-        except CCTError, e:
+        except (CCTError, Exception) as e:
+            if type(e) is not CCTError:
+                logger.error("Problematic Error")
+                logger.debug(traceback.format_exc())
             logger.error(e.msg)
             logger.error("Not accepting roles")
             return
         for user in users:
+            logger.info("Accepting roles for %s" % user)
             parameters = "?"
             for id in self.get_pending_roles_request_ids(copy_config, user, logger):
                 parameters += "ids%3Alist=" + id + "&"
             parameters += 'agree=&accept= + Accept + '  # rest of form
             auth = tuple(user.split(':'))
-            response = http.http_get_request(copy_config.destination_server + '/updateCollaborations' + parameters,
+            response = http.http_get_request("%s/updateCollaborations%s" % (copy_config.destination_server, parameters),
                                              auth=auth)  # yes, it is a GET request
             if not http.verify(response, logger):
-                logger.error("Failure accepting pending requests for " + auth[0] + str(response.status_code) + ' ' +
-                             response.reason)
+                logger.error("Failure accepting pending requests for %s %s %s" %
+                             (auth[0], response.status_code, response.reason))
                 failures.append((auth[0], " accepting pending role requests"))
