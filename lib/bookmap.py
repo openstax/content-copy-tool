@@ -93,14 +93,18 @@ class Bookmap:
             for cmd in cmds:
                 self.safe_process_column(cmd[0], cmd[1], row, module, cmd[2])
             bookmap.add_module(module)
-        if self.workgroups:
-            for chapter in self.chapters:
-                chapter_number_and_title = self.get_chapter_number_and_title(chapter)
-                chapter_title = chapter_number_and_title.split(' ', 1)[1]
-
-                wgtitle = "%s - %s" % (self.booktitle, chapter_number_and_title)
-                # wgtitle += str(datetime.datetime.now())  # REMOVE IN PRODUCTION
-                bookmap.add_workgroup(Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title))
+        for chapter in self.chapters:
+            chapter_number_and_title = self.get_chapter_number_and_title(chapter)
+            chapter_title = chapter_number_and_title.split(' ', 1)[1]
+            wgtitle = "%s - %s" % (self.booktitle, chapter_number_and_title)
+            new_workgroup = Workgroup(wgtitle, chapter_number=chapter, chapter_title=chapter_title)
+            bookmap.add_workgroup(new_workgroup)
+            for module in bookmap.modules:
+                if module.chapter_number == chapter:
+                    new_workgroup.add_module(module)
+                    new_workgroup.url = module.destination_workspace_url
+                    new_workgroup.unit_number = module.unit_number
+                    new_workgroup.unit_title = module.unit_title
         return bookmap
 
     def safe_process_column(self, lhs, rhs, row, module, default=None):
@@ -299,7 +303,7 @@ class Workgroup(Workspace):
         modules_str = ""
         for module in self.modules:
             modules_str += '\n\t' + str(module)
-        return "%s %s %s %s %s %s" % \
+        return "%s %s: [%s] %s \"%s\": %s" % \
                (self.id, self.title, self.chapter_number, self.chapter_title, self.url, modules_str)
 
 

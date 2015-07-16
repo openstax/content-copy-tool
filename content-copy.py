@@ -20,7 +20,7 @@ http_util.py
 command_line_interface.py
 """
 
-VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.6'
+VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.7'
 PRODUCTION = False
 
 
@@ -198,9 +198,8 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
                          and workgroup.unit_number != "":
                     parent = units_map[workgroup.unit_number]
                 try:
-                    if workgroup.chapter_number != '0' \
-                       and workgroup.unit_number != 'APPENDIX' \
-                       and workgroup.unit_number != "":
+                    if ((units and workgroup.unit_number != 'APPENDIX' and workgroup.unit_number != "") or not units)\
+                            and workgroup.chapter_number != '0':
                         subcollections = content_creator.add_subcollections([workgroup.chapter_title],
                                                                             copy_config.destination_server,
                                                                             copy_config.credentials,
