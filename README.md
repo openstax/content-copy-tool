@@ -100,13 +100,12 @@ rest of the process consistent.
 16	   "chapter_number_column": "Chapter Number",
 17	   "module_title_column": "Module Title",
 18	   "source_module_ID_column": "Production Module ID",
-19	   "source_workgroup_column": "Production Workgroup",
-20	   "destination_module_ID_column": "Dev Module ID",
-21	   "destination_workgroup_column": "Dev Workgroup",
-22	   "unit_number_column": "Unit Number",
-23	   "unit_title_column": "Unit Title",
-24	   "strip_section_numbers": "true"
-25	}
+19	   "destination_module_ID_column": "Dev Module ID",
+20	   "destination_workgroup_column": "Dev Workgroup",
+21	   "unit_number_column": "Unit Number",
+22	   "unit_title_column": "Unit Title",
+23	   "strip_section_numbers": "true"
+24	}
 ```
 * Lines 2 and 3 are the urls for the source and destination servers.
 * Line 4 is the username:password of the user that will be used to
@@ -130,14 +129,14 @@ and will be the value for this line. You should only have to edit this line once
 (unless you move the tool to a different directory).
 * Line 14 is the name of the log file for the tool, you should not need to
 change this, but it might be valuable for reference later.
-* Line 15 - 23 are the titles of the columns in the input file. The values for
+* Line 15 - 22 are the titles of the columns in the input file. The values for
 these lines must match the column titles in the input file (csv/tsv). However,
-if the input file does not have one of the optional columns (lines 18 - 21), the
+if the input file does not have one of the optional columns (lines 18 - 22), the
 names can be whatever you wish them to be. It may be valuable to give them
 descriptive names that indicate the server they are on, for example. Keep in
 mind that the input file is a delimiter-separated-values files, so do not use a
 comma if the file is a .csv or a tab if the file is a .tsv.
-* Line 24 tells the tool if you would like to remove section numbers from the
+* Line 23 tells the tool if you would like to remove section numbers from the
 titles of modules. For example, if the input file has a module titled “1.2 What
 is Psychology?” then you may want to strip the section numbers. If you choose to
 do so, the section number will be treated as a separate attribute of the module,
@@ -384,3 +383,13 @@ To use the service, use Finder to navigate to the folder you want to open your
 terminal in, in our case, select content-copy-tool. Secondary click on the
 folder, select Services > New Terminal at Folder. It might take a moment to
 open, but should pull up a terminal at that location.
+
+####Pro-Tip
+For long runs that might take a while, it is important to keep you machine awake 
+while the process is running. If it goes to sleep, the tool will hang up and won’t 
+be able to complete successfully. To keep your mac from going to sleep (if you are 
+stepping away from your computer), you can use the `caffeinate` tool to keep it awake. 
+To use this you will prepend `caffeinate -i` to the front of the tool’s command, for example:
+```
+caffeinate -i ./content-copy.py -s settings.json -i input.tsv -wcop
+```
