@@ -22,7 +22,7 @@ command_line_interface.py
 """
 
 VERSION = 'OpenStaxCNX Content-Copy-Tool v.1.1'
-PRODUCTION = False
+PRODUCTION = True
 
 
 def run(settings, input_file, run_options):
