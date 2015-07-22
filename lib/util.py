@@ -1,6 +1,7 @@
 import json
 import logging
 import re as regex
+import signal
 """
 This file contains some basic utility functions for the content-copy-tool.
 Functions relate to tool setup, selenium, and I/O.
@@ -44,3 +45,27 @@ def parse_json(input):
 class CCTError(Exception):
     def __init__(self, arg):
         self.msg = arg
+
+class TimeoutError(Exception):
+    def __init__(self, arg):
+        self.msg = arg
+
+
+class SkipSignal(Exception):
+    def __init__(self, arg):
+        self.msg = arg
+
+
+class TerminateError(Exception):
+    def __init__(self, arg):
+        self.msg = arg
+
+
+def handle_timeout(signal, frame):
+    raise TimeoutError("Timeout")
+
+def handle_user_skip(signal, frame):
+    raise SkipSignal("Skip Signaled")
+
+def handle_terminate(signal, frame):
+    raise TerminateError("Terminate Signaled")

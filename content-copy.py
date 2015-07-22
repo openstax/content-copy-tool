@@ -7,6 +7,7 @@ from lib.operation_objects import *
 from lib.bookmap import *
 from lib.role_updates import *
 import subprocess
+import signal
 """
 This script is the main script of the content-copy-tool, it requires the
 presence of the following utility files to execute properly.
@@ -20,7 +21,7 @@ http_util.py
 command_line_interface.py
 """
 
-VERSION = 'OpenStaxCNX Content-Copy-Tool v.0.7'
+VERSION = 'OpenStaxCNX Content-Copy-Tool v.1.1'
 PRODUCTION = False
 
 
@@ -88,7 +89,7 @@ def run(settings, input_file, run_options):
         if run_options.publish:  # publish the modules
             publish_modules_post_copy(copier, content_creator, run_options, credentials, logger, failures)
             logger.debug("Finished publishing modules.")
-    except CCTError, e:
+    except (CCTError, util.TerminateError, util.SkipSignal) as e:
         output = bookmap.save(run_options.units, True)
         logger.error(e.msg)
 
@@ -117,23 +118,33 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
     if run_options.workgroups:
         logger.info("-------- Creating workgroups ------------------------")
         chapter_to_workgroup = {}
+        workgroups_to_remove = []
         for workgroup in bookmap.bookmap.workgroups:
             try:
                 content_creator.run_create_workgroup(workgroup, copy_config.destination_server, copy_config.credentials,
                                                      logger, dryrun=run_options.dryrun)
-            except (CCTError, Exception) as e:
-                if type(e) is not CCTError:
+            except util.TerminateError:
+                raise util.TerminateError("Terminate Signaled")
+            except (CCTError, util.SkipSignal, Exception) as e:
+                if type(e) is not CCTError and type(e) is not util.SkipSignal:
                     logger.error("Problematic Error")
                     logger.debug(traceback.format_exc())
+                if type(e) is util.SkipSignal:
+                    logger.warn("User skipped creating workgroup.")
                 logger.error("Workgroup %s failed to be created, skipping chapter %s" %
                              (workgroup.title, workgroup.chapter_number))
-                bookmap.chapters.remove(workgroup.chapter_number)
-                bookmap.bookmap.workgroups.remove(workgroup)
+                workgroups_to_remove.append((workgroup, workgroup.chapter_number))
                 for module in bookmap.bookmap.modules:
                     if module.chapter_number is workgroup.chapter_number:
                         module.valid = False
                         failures.append((module.full_title(), " creating placeholder"))
             chapter_to_workgroup[workgroup.chapter_number] = workgroup
+
+        for workgroup, chapter in workgroups_to_remove:
+            bookmap.chapters.remove(chapter)
+            bookmap.bookmap.workgroups.remove(workgroup)
+
+        logger.debug("Operating on these chapters now: %s" % bookmap.chapters)
 
     logger.info("-------- Creating modules -------------------------------")
     for module in bookmap.bookmap.modules:
@@ -148,10 +159,14 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                 if run_options.workgroups:
                     chapter_to_workgroup[module.chapter_number].add_module(module)
                     chapter_to_workgroup[module.chapter_number].unit_number = module.unit_number
+            except util.TerminateError:
+                raise util.TerminateError("Terminate Signaled")
             except (CCTError, Exception) as e:
-                if type(e) is not CCTError:
+                if type(e) is not CCTError and type(e) is not util.SkipSignal:
                     logger.error("Problematic Error")
                     logger.debug(traceback.format_exc())
+                if type(e) is util.SkipSignal:
+                    logger.warn("User skipped creating module.")
                 logger.error("Module %s failed to be created. " % module.title)
                 module.valid = False
                 failures.append((module.full_title(), " creating placeholder"))
@@ -165,12 +180,16 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
             logger.debug("Creating collection.")
             collection = content_creator.create_collection(copy_config.credentials, bookmap.booktitle,
                                                            copy_config.destination_server, logger)
+        except util.TerminateError:
+            raise util.TerminateError("Terminate Signaled")
         except (CCTError, Exception) as e:
-            if type(e) is not CCTError:
-                logger.error("Problematic Error")
-                logger.debug(traceback.format_exc())
+            if type(e) is not CCTError and type(e) is not util.SkipSignal:
+                    logger.error("Problematic Error")
+                    logger.debug(traceback.format_exc())
+            if type(e) is util.SkipSignal:
+                logger.warn("User skipped creating collection.")
             logger.error("Failed to create the collection")
-            failures.append(("creating collection", ""))
+            failures.append(("%s" % bookmap.booktitle, "creating collection"))
             return None
     unit_numbers_and_title = set()
     units_map = {}
@@ -184,10 +203,24 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
         as_list.sort(key=lambda unit_number_and_title: unit_number_and_title[0])
         if not dry_run:
             for unit_number, unit_title in as_list:
-                unit_collection = content_creator.add_subcollections(["Unit %s. %s" % (unit_number, unit_title)],
-                                                                     copy_config.destination_server,
-                                                                     copy_config.credentials, collection, logger)
-                units_map[unit_number] = unit_collection[0]
+                try:
+                    unit_collection = content_creator.add_subcollections(["Unit %s. %s" % (unit_number, unit_title)],
+                                                                         copy_config.destination_server,
+                                                                         copy_config.credentials, collection, logger)
+                    units_map[unit_number] = unit_collection[0]
+                except util.TerminateError:
+                    raise util.TerminateError("Terminate Signaled")
+                except (CCTError, Exception) as e:
+                    if type(e) is not CCTError and type(e) is not util.SkipSignal:
+                        logger.error("Problematic Error")
+                        logger.debug(traceback.format_exc())
+                    if type(e) is util.SkipSignal:
+                        logger.warn("User skipped creating subcollections for units.")
+                    logger.error("Failed to create subcollections for units")
+                    failures.append(("%s" % unit_number,
+                                     "creating unit subcollections (those chapters were added to the collection %s)" %
+                                     collection.title))
+                    units_map[unit_number] = collection
     for workgroup in bookmap.bookmap.workgroups:
         if workgroup.chapter_number in bookmap.chapters:
             logger.debug("Added subcollections and modules to collection.")
@@ -207,26 +240,50 @@ def create_populate_and_publish_collection(content_creator, copy_config, bookmap
                         module_parent = subcollections[0]
                     else:
                         module_parent = collection
+                except util.TerminateError:
+                    raise util.TerminateError("Terminate Signaled")
                 except (CCTError, Exception) as e:
-                    if type(e) is not CCTError:
+                    if type(e) is not CCTError and type(e) is not util.SkipSignal:
                         logger.error("Problematic Error")
                         logger.debug(traceback.format_exc())
-                    logger.error("Failed to create subcollections for chapters")
-                    failures.append(("creating subcollections", ""))
-                    return
-                content_creator.add_modules_to_collection(workgroup.modules, copy_config.destination_server,
-                                                          copy_config.credentials, module_parent, logger, failures)
+                    if type(e) is util.SkipSignal:
+                        logger.warn("User skipped creating subcollections for chapters.")
+                    logger.error("Failed to create subcollections for chapter %s, adding modules to %s" %
+                                 (workgroup.chapter_number, collection.title))
+                    failures.append(("%s" % workgroup.chapter_title,
+                                     "creating subcollections (those modules were added to collection %s)" %
+                                     collection.title))
+                    module_parent = collection
+                try:
+                    content_creator.add_modules_to_collection(workgroup.modules, copy_config.destination_server,
+                                                              copy_config.credentials, module_parent, logger, failures)
+
+                except util.TerminateError:
+                    raise util.TerminateError("Terminate Signaled")
+                except (CCTError, Exception) as e:
+                    if type(e) is not CCTError and type(e) is not util.SkipSignal:
+                        logger.error("Problematic Error")
+                        logger.debug(traceback.format_exc())
+                    if type(e) is util.SkipSignal:
+                        logger.warn("User skipped adding modules to subcollection.")
+                    logger.error("Failed to add modules to chapter %s" % workgroup.chapter_number)
+                    failures.append(("%s" % workgroup.modules, "adding modules to subcollections"))
 
     if not dry_run and publish_collection:
         try:
             content_creator.publish_collection(copy_config.destination_server, copy_config.credentials, collection,
                                                logger)
+
+        except util.TerminateError:
+            raise util.TerminateError("Terminate Signaled")
         except (CCTError, Exception) as e:
-            if type(e) is not CCTError:
+            if type(e) is not CCTError and type(e) is not util.SkipSignal:
                 logger.error("Problematic Error")
                 logger.debug(traceback.format_exc())
+            if type(e) is util.SkipSignal:
+                logger.warn("User skipped publishing collection.")
             logger.error("Failed to publish collection")
-            failures.append(("publishing collection", ""))
+            failures.append(("%s" % collection.title, "publishing collection"))
             return None
 
 
@@ -252,10 +309,14 @@ def publish_modules_post_copy(copier, content_creator, run_options, credentials,
                 try:
                     content_creator.publish_module("%s/%s/" % (module.destination_workspace_url, module.destination_id),
                                                    credentials, logger, False)
+                except util.TerminateError:
+                    raise util.TerminateError("Terminate Signaled")
                 except (CCTError, Exception) as e:
-                    if type(e) is not CCTError:
+                    if type(e) is not CCTError and type(e) is not util.SkipSignal:
                         logger.error("Problematic Error")
                         logger.debug(traceback.format_exc())
+                    if type(e) is util.SkipSignal:
+                        logger.warn("User skipped publishing module.")
                     logger.error("Failed to publish module %s", module.destination_id)
                     module.valid = False
                     failures.append((module.full_title(), "publishing module"))
@@ -331,6 +392,8 @@ def main():
                              args.units, args.publish, args.publish_collection, args.chapters, args.exclude,
                              args.dryrun)
     booktitle = ""
+    signal.signal(signal.SIGINT, util.handle_terminate)
+    signal.signal(signal.SIGTSTP, util.handle_user_skip)
     try:
         booktitle = run(args.settings, args.input_file, run_options)
     except Exception, e:

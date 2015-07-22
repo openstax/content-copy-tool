@@ -3,7 +3,7 @@ from shutil import move
 from tempfile import mkstemp
 import re as regex
 import traceback
-from util import CCTError
+from util import CCTError, SkipSignal, TerminateError
 import http_util as http
 
 """
@@ -126,10 +126,14 @@ class RoleUpdater:
     def accept_roles(self, copy_config, logger, failures):
         try:
             users = self.get_users_of_roles()
+        except TerminateError:
+            raise TerminateError("Terminate Signaled")
         except (CCTError, Exception) as e:
-            if type(e) is not CCTError:
+            if type(e) is not CCTError and type(e) is not SkipSignal:
                 logger.error("Problematic Error")
                 logger.debug(traceback.format_exc())
+            if type(e) is SkipSignal:
+                logger.warn("User skipped creating workgroup.")
             logger.error(e.msg)
             logger.error("Not accepting roles")
             return

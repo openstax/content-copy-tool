@@ -1,6 +1,6 @@
 import csv
 import re as regex
-import datetime
+import time
 
 """
 This file contains the bookmap related objects.
@@ -171,9 +171,9 @@ class Bookmap:
         """ Saves the bookmap object to a file with same format as the input file. """
 
         parts = self.filename.split('.')
-        save_file = "%s_output.%s" % (parts[0], parts[1])
+        save_file = "%s_output_%s.%s" % (parts[0], time.strftime("%Y%m%d-%H%M%S"), parts[1])
         if error:
-            save_file = "%s_error.%s" % (parts[0], parts[1])
+            save_file = "%s_error_%s.%s" % (parts[0], time.strftime("%Y%m%d-%H%M%S"), parts[1])
         columns = [self.config.chapter_number_column,
                    self.config.chapter_title_column,
                    self.config.module_title_column,
