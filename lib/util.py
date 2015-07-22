@@ -46,10 +46,6 @@ class CCTError(Exception):
     def __init__(self, arg):
         self.msg = arg
 
-class TimeoutError(Exception):
-    def __init__(self, arg):
-        self.msg = arg
-
 
 class SkipSignal(Exception):
     def __init__(self, arg):
@@ -59,10 +55,6 @@ class SkipSignal(Exception):
 class TerminateError(Exception):
     def __init__(self, arg):
         self.msg = arg
-
-
-def handle_timeout(signal, frame):
-    raise TimeoutError("Timeout")
 
 def handle_user_skip(signal, frame):
     raise SkipSignal("Skip Signaled")

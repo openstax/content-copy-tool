@@ -6,6 +6,8 @@ from tempfile import mkstemp
 from os import close
 
 import requests
+import signal
+import subprocess
 
 import makemultipart as multi
 
@@ -14,12 +16,24 @@ This file contains some utility functions for the content-copy-tool that relate
 to http requests.
 """
 
+timeout = 300
+
 def http_post_request(url, headers={}, auth=(), data={}):
     """
     Sends a POST request to the specified url with the specified headers, data,
     and authentication tuple.
     """
+
+    def handle_timeout(signal, frame):
+        app = '"Terminal"'
+        msg = '"Request: %s is taking an exceptionally long time, you might want to skip this task (Ctrl+z)"' % url
+        bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"
+        subprocess.call([bashCommand], shell=True)
+
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.alarm(timeout)
     response = requests.post(url, headers=headers, auth=auth, data=data)
+    signal.alarm(0)
     return response
 
 def http_get_request(url, headers={}, auth=(), data={}):
@@ -27,7 +41,16 @@ def http_get_request(url, headers={}, auth=(), data={}):
     Sends a GET request to the specified url with the specified headers, data,
     and authentication tuple.
     """
+    def handle_timeout(signal, frame):
+        app = '"Terminal"'
+        msg = '"Request: %s is taking an exceptionally long time, you might want to skip this task (Ctrl+z)"' % url
+        bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"
+        subprocess.call([bashCommand], shell=True)
+
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.alarm(timeout)
     response = requests.get(url, headers=headers, auth=auth, data=data)
+    signal.alarm(0)
     return response
 
 def http_request(url, headers={}, data={}):
@@ -50,10 +73,19 @@ def http_request(url, headers={}, data={}):
 
 def http_download_file(url, filename, extension):
     """ Downloads the file at [url] and saves it as [filename.extension]. """
+    def handle_timeout(signal, frame):
+        app = '"Terminal"'
+        msg = '"Download: %s is taking an exceptionally long time, you might want to skip this task (Ctrl+z)"' % url
+        bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"
+        subprocess.call([bashCommand], shell=True)
+
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.alarm(timeout)
     try:
         urllib.urlretrieve(url, filename + extension)
     except urllib.error.URLError as e:
         print(e.reason)
+    signal.alarm(0)
     return filename + extension
 
 def extract_boundary(filename):
@@ -79,9 +111,19 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
     headers = {"Content-Type": "multipart/related;boundary=%s;type=application/atom + xml" % boundary_code,
                "In-Progress": "true", "Accept-Encoding": "zip", "Authorization": 'Basic %s' % userAndPass}
     req = urllib2.Request(url)
+
+    def handle_timeout(signal, frame):
+        app = '"Terminal"'
+        msg = '"Request: %s is taking an exceptionally long time, you might want to skip this task (Ctrl+z)"' % url
+        bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"
+        subprocess.call([bashCommand], shell=True)
+
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.alarm(timeout)
     connection = httplib.HTTPConnection(req.get_host())
     connection.request('POST', req.get_selector(), open(abs_path), headers)
     response = connection.getresponse()
+    signal.alarm(0)
     close(fh)
     return response, abs_path
 
