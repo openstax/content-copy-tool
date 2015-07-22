@@ -298,6 +298,17 @@ BrokenModule3,m34567,0
 BrokenModule4,m45678,0
 ```
 
+#####Skipping and Terminating
+If the tool gets stuck on a task, you can tell it to skip the task it is working on.
+To skip the current tasks, press `Ctrl+z`. This will tell the tool to skip the module
+(or workgroup or collection) that it is processing and treat it as failed. This process
+is somewhat dangerous and should not be used lightly. It is most helpful when you see 
+the notification of a potential stall in the process.
+
+If you decide that you want to prematurely stop the tool in its tracks, you can terminate
+the process by pressing `Ctrl+c`. This will terminate the process, but the bookmap's
+state will be saved in `[INPUT FILE NAME]_error_[TIMESTAMP].tsv` (or csv).updatepupasasdf
+
 ####Input File Explained
 The input file contains the data that the tool will operate on. It is a list of
 modules. The title of the file should be the title of the book (this is most
