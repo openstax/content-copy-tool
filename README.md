@@ -31,7 +31,7 @@ set it up.
 ```git clone https://github.com/Rhaptos/content-copy-tool.git```
 This will copy the tool down to your machine and put the contents into the content-copy-tool folder.
 * If you are using git (recommended), to get the latest version of the tool, navigate to the tool’s 
-top directory (see beginning of step 5), and enter the command git pull. This will update your tool 
+top directory (see beginning of step 5), and enter the command `git pull`. This will update your tool 
 with the latest version. You can skip to step 5.
 * If you are NOT using git, Create a new folder in your Documents folder called content-copy-tool
 * If you are NOT using git, Extract the content-copy-tool zip contents into this folder. The rest of 
