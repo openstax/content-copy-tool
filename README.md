@@ -307,7 +307,7 @@ the notification of a potential stall in the process.
 
 If you decide that you want to prematurely stop the tool in its tracks, you can terminate
 the process by pressing `Ctrl+c`. This will terminate the process, but the bookmap's
-state will be saved in `[INPUT FILE NAME]_error_[TIMESTAMP].tsv` (or csv).updatepupasasdf
+state will be saved in `[INPUT FILE NAME]_error_[TIMESTAMP].tsv` (or csv).
 
 ####Input File Explained
 The input file contains the data that the tool will operate on. It is a list of
