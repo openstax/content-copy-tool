@@ -75,7 +75,7 @@ def run(settings, input_file, run_options):
         if run_options.modules or run_options.workgroups:  # create placeholders
             create_placeholders(logger, bookmap, copy_config, run_options, content_creator, failures)
             output = bookmap.save(run_options.units)  # save output data
-            logger.debug("Finished created placeholders, output has been saved.")
+            logger.debug("Finished created placeholders, output has been saved: %s." % output)
         if run_options.copy:  # copy content
             copier.copy_content(role_config, run_options, logger, failures)
             logger.debug("Finished copying content.")
@@ -123,6 +123,7 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
             try:
                 content_creator.run_create_workgroup(workgroup, copy_config.destination_server, copy_config.credentials,
                                                      logger, dryrun=run_options.dryrun)
+                logger.debug("[CREATED WORKGROUP] %s - %s" % (workgroup.title, workgroup.url))
             except util.TerminateError:
                 raise util.TerminateError("Terminate Signaled")
             except (CCTError, util.SkipSignal, Exception) as e:
@@ -152,6 +153,10 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
             workgroup_url = 'Members/'
             if run_options.workgroups:
                 workgroup_url = chapter_to_workgroup[module.chapter_number].url
+            if module.destination_workspace_url != "" and module.destination_workspace_url is not None:
+                logger.debug("Adding module %s to existing workgroup %s" %
+                             (module.title, module.destination_workspace_url))
+                workgroup_url = module.destination_workspace_url
             try:
                 content_creator.run_create_and_publish_module(module, copy_config.destination_server, 
                                                               copy_config.credentials, logger, workgroup_url, 
@@ -159,6 +164,7 @@ def create_placeholders(logger, bookmap, copy_config, run_options, content_creat
                 if run_options.workgroups:
                     chapter_to_workgroup[module.chapter_number].add_module(module)
                     chapter_to_workgroup[module.chapter_number].unit_number = module.unit_number
+                logger.debug("[CREATED MODULE] %s - %s" % (module.title, module.destination_id))
             except util.TerminateError:
                 raise util.TerminateError("Terminate Signaled")
             except (CCTError, Exception) as e:

@@ -97,69 +97,97 @@ class Copier:
         """
         for module in self.copy_map.modules:
             if module.valid and module.chapter_number in run_options.chapters:
-                try:
-                    files = []
-                    if module.source_id is None:
-                        logger.error("Module %s has no source id" % module.title)
-                        failures.append((module.full_title(), ": module has not source id"))
-                        continue
-                    logger.info("Copying content for module: %s - %s" % (module.source_id, module.full_title()))
-                    if not run_options.dryrun:
-                        files.append(http.http_download_file("%s/content/%s/latest/module_export?format=zip" %
-                                                             (self.config.source_server, module.source_id),
-                                                             module.source_id, '.zip'))
-                        files.append(http.http_download_file("%s/content/%s/latest/rhaptos-deposit-receipt" %
-                                                             (self.config.source_server, module.source_id),
-                                                             module.source_id, '.xml'))
-                        try:
-                            if run_options.roles:
-                                RoleUpdater(role_config).run_update_roles("%s.xml" % module.source_id)
-                        except TerminateError:
-                            raise TerminateError("Terminate Signaled")
-                        except (CCTError, Exception) as e:
-                            if type(e) is not CCTError and type(e) is not SkipSignal:
-                                logger.error("Problematic Error")
-                                logger.debug(traceback.format_exc())
-                            if type(e) is SkipSignal:
-                                logger.warn("User skipped creating workgroup.")
-                            logger.error("Failure updating roles on module %s" % module.source_id)
-                            module.valid = False
-                            failures.append((module.full_title(), " updating roles"))
-
-                        try:
-                            self.clean_zip("%s.zip" % module.source_id)  # remove index.cnxml.html from zipfile
-                        except TerminateError:
-                            raise TerminateError("Terminate Signaled")
-                        except Exception, e:
-                            logger.debug(traceback.format_exc())
-                            logger.error("Failed cleaning module zipfile %s" % module.title)
-                            module.valid = False
-                            failures.append((module.full_title(), " cleaning module zipfile "))
-                            continue
-
-                        res, mpart = http.http_upload_file("%s.xml" % module.source_id, "%s.zip" % module.source_id,
-                                                           "%s/%s/sword" % (module.destination_workspace_url,
-                                                                            module.destination_id), self.config.credentials)
-                        files.append(mpart)
-                        # clean up temp files
-                        if res.status < 400:
-                            for temp_file in files:
-                                remove(temp_file)
-                        else:
-                            logger.error("Failed copying module %s" % module.title)
-                            module.valid = False
-                            failures.append((module.full_title(), " copying module "))
-                except TerminateError:
-                    raise TerminateError("Terminate Signaled")
-                except (CCTError, Exception) as e:
-                    if type(e) is not CCTError and type(e) is not SkipSignal:
-                        logger.error("Problematic Error")
-                        logger.debug(traceback.format_exc())
-                    if type(e) is SkipSignal:
-                        logger.warn("User skipped copying module.")
+                if not module.destination_workspace_url or module.destination_workspace_url == "":
+                    logger.error("Module %s destination workspace url is invalid: %s" %
+                                 (module.title, module.destination_workspace_url))
+                    continue
+                if not module.destination_id or module.destination_id == "":
+                    logger.error("Module %s destination id is invalid: %s" %
+                                 (module.title, module.destination_id))
+                    continue
+                http_server = regex.match(r'https?://', self.config.destination_server)
+                http_workgroup = regex.match(r'https?://', module.destination_workspace_url)
+                if not http_server or not http_workgroup:
+                    logger.error("Either the destination server: %s or "
+                                 "the module's destination workgroup url: %s is bad." %
+                                 (self.config.destination_server, module.destination_workspace_url))
                     logger.error("Failure copying module %s" % module.source_id)
                     module.valid = False
                     failures.append((module.full_title(), "copying module"))
+                    continue
+                else:
+                    if not regex.search(self.config.destination_server[http_server.end():],
+                                        module.destination_workspace_url[http_workgroup.end():]):
+                        logger.error("Destination workspace does not match destination server! "
+                                     "Destination Server: %s vs. Workspace URL: %s" %
+                                     (self.config.destination_server, module.destination_workspace_url))
+                        continue
+                    try:
+                        files = []
+                        if module.source_id is None:
+                            logger.error("Module %s has no source id" % module.title)
+                            failures.append((module.full_title(), ": module has not source id"))
+                            continue
+                        logger.info("Copying content for module: %s - %s" % (module.source_id, module.full_title()))
+                        if not run_options.dryrun:
+                            files.append(http.http_download_file("%s/content/%s/latest/module_export?format=zip" %
+                                                                 (self.config.source_server, module.source_id),
+                                                                 module.source_id, '.zip'))
+                            files.append(http.http_download_file("%s/content/%s/latest/rhaptos-deposit-receipt" %
+                                                                 (self.config.source_server, module.source_id),
+                                                                 module.source_id, '.xml'))
+                            try:
+                                if run_options.roles:
+                                    RoleUpdater(role_config).run_update_roles("%s.xml" % module.source_id)
+                            except TerminateError:
+                                raise TerminateError("Terminate Signaled")
+                            except (CCTError, Exception) as e:
+                                if type(e) is not CCTError and type(e) is not SkipSignal:
+                                    logger.error("Problematic Error")
+                                    logger.debug(traceback.format_exc())
+                                if type(e) is SkipSignal:
+                                    logger.warn("User skipped creating workgroup.")
+                                logger.error("Failure updating roles on module %s" % module.source_id)
+                                module.valid = False
+                                failures.append((module.full_title(), " updating roles"))
+                                continue
+
+                            try:
+                                self.clean_zip("%s.zip" % module.source_id)  # remove index.cnxml.html from zipfile
+                            except TerminateError:
+                                raise TerminateError("Terminate Signaled")
+                            except Exception, e:
+                                logger.debug(traceback.format_exc())
+                                logger.error("Failed cleaning module zipfile %s" % module.title)
+                                module.valid = False
+                                failures.append((module.full_title(), " cleaning module zipfile "))
+                                continue
+                            res, mpart = http.http_upload_file("%s.xml" % module.source_id,
+                                                               "%s.zip" % module.source_id,
+                                                               "%s/%s/sword" % (module.destination_workspace_url,
+                                                                                module.destination_id),
+                                                               self.config.credentials)
+                            files.append(mpart)
+                            # clean up temp files
+                            if res.status < 400:
+                                for temp_file in files:
+                                    remove(temp_file)
+                            else:
+                                logger.error("Failed copying module %s, response %s %s" %
+                                             (module.title, res.status, res.reason))
+                                module.valid = False
+                                failures.append((module.full_title(), " copying module "))
+                    except TerminateError:
+                        raise TerminateError("Terminate Signaled")
+                    except (CCTError, Exception) as e:
+                        if type(e) is not CCTError and type(e) is not SkipSignal:
+                            logger.error("Problematic Error")
+                            logger.debug(traceback.format_exc())
+                        if type(e) is SkipSignal:
+                            logger.warn("User skipped copying module.")
+                        logger.error("Failure copying module %s" % module.source_id)
+                        module.valid = False
+                        failures.append((module.full_title(), "copying module"))
 
 class ContentCreator:
     def __init__(self, server, credentials):
