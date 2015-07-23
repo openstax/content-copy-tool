@@ -132,7 +132,7 @@ def verify(response, logger):
     if response.status_code < 400:
         return True
     else:
-        error = "Failed response:%s %s when sending to %s with data %s" % \
+        error = "Failed response: %s %s when sending to %s with data %s" % \
                 (response.status_code, response.reason, response.request.url, response.request.body)
         if logger is None:
             print error
