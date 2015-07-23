@@ -32,7 +32,7 @@ class BookmapConfiguration:
 
 class Bookmap:
     """ Represents the input data plus the input options """
-    def __init__(self, filename, bookmap_config, run_options):
+    def __init__(self, filename, bookmap_config, run_options, logger):
         self.filename = filename
         self.config = bookmap_config
         self.booktitle = self.parse_book_title(filename)
@@ -47,9 +47,9 @@ class Bookmap:
             self.chapters = [chapter for chapter in self.chapters if chapter not in run_options.exclude]
         run_options.chapters = self.chapters
         self.workgroups = run_options.workgroups
-        self.read_csv(filename)
+        self.read_csv(filename, logger)
 
-    def read_csv(self, filename):
+    def read_csv(self, filename, logger):
         """
         Reads in a csv file and returns a list of the entries, will also accept a
         tsv file.
@@ -64,9 +64,9 @@ class Bookmap:
             None
         """
         self.bookmap_raw = list(csv.DictReader(open(filename), delimiter=self.delimiter))
-        self.bookmap = self.convert(csv.DictReader(open(filename), delimiter=self.delimiter))
+        self.bookmap = self.convert(logger, csv.DictReader(open(filename), delimiter=self.delimiter))
 
-    def convert(self, reader):
+    def convert(self, logger, reader):
         """
         Reads the input raw data and converts it into the bookmap object.
 
@@ -77,6 +77,7 @@ class Bookmap:
             The internal BookmapData object with all of the parsed data from the input file.
         """
         bookmap = BookmapData()
+        logger.debug("Columns from input file: %s" % reader.fieldnames)
         for row in reader:
             section_number, title = self.strip_section_numbers(row[self.config.module_title_column])
             module = CNXModule(title, section_number)

@@ -43,7 +43,7 @@ def run(settings, input_file, run_options):
                                           str(config['unit_title_column']),
                                           str(config['strip_section_numbers']))
     logger.debug("Bookmap configuration has been created")
-    bookmap = Bookmap(input_file, bookmap_config, run_options)
+    bookmap = Bookmap(input_file, bookmap_config, run_options, logger)
     logger.debug("Bookmap has been created")
 
     # Copy Configuration and Copier
