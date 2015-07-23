@@ -8,7 +8,7 @@ to another. The tool is a python script that runs via the command line.
 The tool is made up of a set of scripts:
 ```
 content-copy.py
-setup.py
+setup.sh
 example-settings.json
 example-input.tsv
 __init__.py

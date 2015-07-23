@@ -100,10 +100,14 @@ class Copier:
                 if not module.destination_workspace_url or module.destination_workspace_url == "":
                     logger.error("Module %s destination workspace url is invalid: %s" %
                                  (module.title, module.destination_workspace_url))
+                    module.valid = False
+                    failures.append((module.full_title(), "copying module"))
                     continue
                 if not module.destination_id or module.destination_id == "":
                     logger.error("Module %s destination id is invalid: %s" %
                                  (module.title, module.destination_id))
+                    module.valid = False
+                    failures.append((module.full_title(), "copying module"))
                     continue
                 http_server = regex.match(r'https?://', self.config.destination_server)
                 http_workgroup = regex.match(r'https?://', module.destination_workspace_url)
@@ -121,11 +125,14 @@ class Copier:
                         logger.error("Destination workspace does not match destination server! "
                                      "Destination Server: %s vs. Workspace URL: %s" %
                                      (self.config.destination_server, module.destination_workspace_url))
+                        module.valid = False
+                        failures.append((module.full_title(), "copying module"))
                         continue
                     try:
                         files = []
                         if module.source_id is None:
                             logger.error("Module %s has no source id" % module.title)
+                            module.valid = False
                             failures.append((module.full_title(), ": module has not source id"))
                             continue
                         logger.info("Copying content for module: %s - %s" % (module.source_id, module.full_title()))
