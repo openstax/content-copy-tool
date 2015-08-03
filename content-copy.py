@@ -21,12 +21,20 @@ http_util.py
 command_line_interface.py
 """
 
-VERSION = 'OpenStaxCNX Content-Copy-Tool v.1.1'
+VERSION = 'OpenStaxCNX Content-Copy-Tool v.1.2'
 PRODUCTION = True
 
 
 def run(settings, input_file, run_options):
-    config = util.parse_json(settings)
+    try:
+        config = util.parse_json(settings)
+    except Exception, e:
+        print("There was an error reading the settings file: %s, confirm that the formatting compiles with "
+                     "all json standards." % settings)
+        print(traceback.format_exc())
+        print("There was an error reading the settings file: %s, confirm that the formatting compiles with "
+                     "all json standards." % settings)
+        sys.exit(1)
 
     logfile = config['logfile']
     logger = util.init_logger(logfile)
