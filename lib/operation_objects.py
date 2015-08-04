@@ -169,21 +169,21 @@ class Copier:
                                 module.valid = False
                                 failures.append((module.full_title(), " cleaning module zipfile "))
                                 continue
-                            res, mpart = http.http_upload_file("%s.xml" % module.source_id,
-                                                               "%s.zip" % module.source_id,
-                                                               "%s/%s/sword" % (module.destination_workspace_url,
-                                                                                module.destination_id),
-                                                               self.config.credentials)
+                            res, mpart, url = http.http_upload_file("%s.xml" % module.source_id,
+                                                                    "%s.zip" % module.source_id,
+                                                                    "%s/%s/sword" % (module.destination_workspace_url,
+                                                                                     module.destination_id),
+                                                                    self.config.credentials)
                             files.append(mpart)
                             # clean up temp files
                             if res.status < 400:
                                 for temp_file in files:
                                     remove(temp_file)
                             else:
-                                logger.error("Failed copying module %s, response %s %s" %
-                                             (module.title, res.status, res.reason))
+                                logger.error("Failed uploading module %s, response %s %s when sending to %s" %
+                                             (module.title, res.status, res.reason, url))
                                 module.valid = False
-                                failures.append((module.full_title(), " copying module "))
+                                failures.append((module.full_title(), " uploading module "))
                     except TerminateError:
                         raise TerminateError("Terminate Signaled")
                     except (CCTError, Exception) as e:

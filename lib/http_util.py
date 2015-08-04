@@ -83,8 +83,8 @@ def http_download_file(url, filename, extension):
     signal.alarm(timeout)
     try:
         urllib.urlretrieve(url, filename + extension)
-    except urllib.error.URLError as e:
-        print(e.reason)
+    except Exception as e:
+        print(e)
     signal.alarm(0)
     return filename + extension
 
@@ -125,7 +125,7 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
     response = connection.getresponse()
     signal.alarm(0)
     close(fh)
-    return response, abs_path
+    return response, abs_path, url
 
 def verify(response, logger):
     """ Returns True if the response code is < 400, False otherwise. """
