@@ -84,7 +84,7 @@ rest of the process consistent.
 1	{
 2	   "destination_server": "legacydev.cnx.org",
 3	   "source_server": "legacy.cnx.org",
-4	   "credentials": "user2:user2password",
+4	   "destination_credentials": "user2:user2password",
 5
 6	   "authors": ["user2"],
 7	   "maintainers": ["user2", "user1"],
@@ -108,7 +108,7 @@ rest of the process consistent.
 ```
 * Lines 2 and 3 are the urls for the source and destination servers.
 * Line 4 is the username:password of the user that will be used to
-create/upload/publish the content.
+create/upload/publish the content on the destination server.
 * Lines 6 - 8 are the users that will be entered as the corresponding roles, in
 this example, for all content processed
 with this settings file (assuming the alter roles feature is enabled) the author
