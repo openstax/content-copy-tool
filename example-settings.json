@@ -1,6 +1,6 @@
 {
-    "destination_server": "legacydev.cnx.org",
-    "source_server": "legacy.cnx.org",
+    "destination_server": "https://legacydev.cnx.org",
+    "source_server": "https://legacy.cnx.org",
     "destination_credentials": "user2:user2password",
 
     "authors":["user2"],
