@@ -120,7 +120,10 @@ def http_upload_file(xmlfile, zipfile, url, credentials, mpartfilename='tmp'):
 
     signal.signal(signal.SIGALRM, handle_timeout)
     signal.alarm(timeout)
-    connection = httplib.HTTPConnection(req.get_host())
+    if url.startswith('https://'):
+        connection = httplib.HTTPSConnection(req.get_host())
+    else:
+        connection = httplib.HTTPConnection(req.get_host())
     connection.request('POST', req.get_selector(), open(abs_path), headers)
     response = connection.getresponse()
     signal.alarm(0)
