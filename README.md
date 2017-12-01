@@ -82,8 +82,8 @@ portions, but the highlighted parts represent best practices for keeping the
 rest of the process consistent.
 ```
 1	{
-2	   "destination_server": "legacydev.cnx.org",
-3	   "source_server": "legacy.cnx.org",
+2	   "destination_server": "https://legacydev.cnx.org",
+3	   "source_server": "https://legacy.cnx.org",
 4	   "destination_credentials": "user2:user2password",
 5
 6	   "authors": ["user2"],
