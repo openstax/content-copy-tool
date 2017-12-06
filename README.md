@@ -1,10 +1,10 @@
-##Content Copy Tool - User Manual
-####Description
+## Content Copy Tool - User Manual
+#### Description
 The Content Copy Tool is a development tool to copy content from one cnx server
 to another. The tool is a python script that runs via the command line.
 
 
-####What’s in the box
+#### What’s in the box
 The tool is made up of a set of scripts:
 ```
 content-copy.py
@@ -26,7 +26,7 @@ lib/
 content-copy.py is the primary script, but before you run the tool, you need to
 set it up.
 
-####Setting up the tool
+#### Setting up the tool
 * If you are using git (recommended), from the Documents folder enter the command 
 ```git clone https://github.com/Rhaptos/content-copy-tool.git```
 This will copy the tool down to your machine and put the contents into the content-copy-tool folder.
@@ -69,7 +69,7 @@ the data within the file to make it actually do this though.
 * The tool should now be set up! Make a settings file for your work and get
 content copying!
 
-####Configuring the tool
+#### Configuring the tool
 Before you run the tool, you need to configure the tool. To configure the tool,
 you will create settings files. These files will act like presets of settings
 for common configurations. These settings files will be json files, so be sure
@@ -82,8 +82,8 @@ portions, but the highlighted parts represent best practices for keeping the
 rest of the process consistent.
 ```
 1	{
-2	   "destination_server": "legacydev.cnx.org",
-3	   "source_server": "legacy.cnx.org",
+2	   "destination_server": "https://legacydev.cnx.org",
+3	   "source_server": "https://legacy.cnx.org",
 4	   "destination_credentials": "user2:user2password",
 5
 6	   "authors": ["user2"],
@@ -144,7 +144,7 @@ to, the section numbers will be treated as part of the module name. If you want
 to remove section numbers from the title, set the value to true. If you do NOT
 want to remove section numbers, set the value to false.
 
-####Running the tool
+#### Running the tool
 Before you run the tool, be sure that you are in the tool’s top directory. To
 run the tool enter the command:
 ```
@@ -161,7 +161,7 @@ If you need an explanation of the tool from within the terminal, run
 ```
 This will display the usage and explanation of the content copy tool.
 
-#####Options
+##### Options
 The tool runs based on the provided command line arguments. Required arguments
 are:
 ```
@@ -238,7 +238,7 @@ with:
 Note, this will override the `-a, --chapters` option. So, if you use both `-a 1`
 `--exclude-chapters 1`, the tool will operate on zero chapters.
 
-#####What you will see
+##### What you will see
 When the tool begins, it will display a summary of what it is about to do, and
 ask for confirmation. enter 1 to proceed and 2 to cancel.
 
@@ -246,7 +246,7 @@ When the tool completes, if it created placeholders, it will create an output
 file (with the added data) and display thefilename. This file will be in the top
 directory of the tool.
 
-Example Uses
+##### Example Uses
 Here are some example use cases (these assume the settings files have been
 created correctly):
 
@@ -297,7 +297,7 @@ BrokenModule3,m34567,0
 BrokenModule4,m45678,0
 ```
 
-#####Skipping and Terminating
+##### Skipping and Terminating
 If the tool gets stuck on a task, you can tell it to skip the task it is working on.
 To skip the current tasks, press `Ctrl+z`. This will tell the tool to skip the module
 (or workgroup or collection) that it is processing and treat it as failed. This process
@@ -308,7 +308,7 @@ If you decide that you want to prematurely stop the tool in its tracks, you can 
 the process by pressing `Ctrl+c`. This will terminate the process, but the bookmap's
 state will be saved in `[INPUT FILE NAME]_error_[TIMESTAMP].tsv` (or csv).
 
-####Input File Explained
+#### Input File Explained
 The input file contains the data that the tool will operate on. It is a list of
 modules. The title of the file should be the title of the book (this is most
 important for the workgroup creation). The format of the file can be either csv
@@ -327,7 +327,7 @@ data in it for each module to be copied.
 If the user wants to publish data, the file needs the destination_module_id
 column and the destination_workgroup column with data for each module.
 
-####Understanding the Command Line Interface
+#### Understanding the Command Line Interface
 Command line programs run in a terminal and do not have graphical windows. So
 instead of a Graphical User Interface, the programs use a Command Line
 Interface. When running a command line program, you enter the name of the
@@ -377,7 +377,7 @@ values, in just the way that you use a word as a key to look up a definition in
 a dictionary. There is much more to json, if you are interested check out
 http://json.org/.  
 
-####Enabling “Open Terminal At Folder” on Mac OS
+#### Enabling “Open Terminal At Folder” on Mac OS
 When you open the Terminal application, it opens to your home directory. This is
 like opening Finder and opening the yourusername folder. To use the
 content-copy-tool, you need to to navigate to the tool’s top directory from
@@ -394,7 +394,7 @@ terminal in, in our case, select content-copy-tool. Secondary click on the
 folder, select Services > New Terminal at Folder. It might take a moment to
 open, but should pull up a terminal at that location.
 
-####Pro-Tip
+#### Pro-Tip
 For long runs that might take a while, it is important to keep you machine awake 
 while the process is running. If it goes to sleep, the tool will hang up and won’t 
 be able to complete successfully. To keep your mac from going to sleep (if you are 
