@@ -1,5 +1,5 @@
 from shutil import rmtree
-from os import remove, path, walk
+from os import remove, path, walk, getpid
 import re as regex
 import traceback
 import zipfile
@@ -11,6 +11,8 @@ from bookmap import Collection
 """
 This file contains the Copy and Content Creation related objects
 """
+
+
 # Configuration Objects
 class CopyConfiguration:
     """ The configuration data that the copier requires. """
@@ -137,11 +139,11 @@ class Copier:
                             continue
                         logger.info("Copying content for module: %s - %s" % (module.source_id, module.full_title()))
                         if not run_options.dryrun:
-                            files.append(http.http_download_file("%s/content/%s/latest/module_export?format=zip" %
-                                                                 (self.config.source_server, module.source_id),
+                            files.append(http.http_download_file("%s/content/%s/latest/module_export?format=zip&nonce=%s" %
+                                                                 (self.config.source_server, module.source_id, getpid()),
                                                                  module.source_id, '.zip'))
-                            files.append(http.http_download_file("%s/content/%s/latest/rhaptos-deposit-receipt" %
-                                                                 (self.config.source_server, module.source_id),
+                            files.append(http.http_download_file("%s/content/%s/latest/rhaptos-deposit-receipt?nonce=%s" %
+                                                                 (self.config.source_server, module.source_id, getpid()),
                                                                  module.source_id, '.xml'))
                             try:
                                 if run_options.roles:
