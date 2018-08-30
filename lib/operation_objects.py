@@ -165,7 +165,7 @@ class Copier:
                                 self.clean_zip("%s.zip" % module.source_id)  # remove index.cnxml.html from zipfile
                             except TerminateError:
                                 raise TerminateError("Terminate Signaled")
-                            except Exception, e:
+                            except Exception as e:
                                 logger.debug(traceback.format_exc())
                                 logger.error("Failed cleaning module zipfile %s" % module.title)
                                 module.valid = False
@@ -197,6 +197,7 @@ class Copier:
                         logger.error("Failure copying module %s" % module.source_id)
                         module.valid = False
                         failures.append((module.full_title(), "copying module"))
+
 
 class ContentCreator:
     def __init__(self, server, credentials):
@@ -357,7 +358,7 @@ class ContentCreator:
             return html[start.end():html.find('"', start.end())]
         except TerminateError:
             raise TerminateError("Terminate Signaled")
-        except Exception, e:
+        except Exception as e:
             logger.debug("Failed to get license, defaulting to cc-by 4.0: %s" % e)
             logger.debug(traceback.format_exc())
             return "http://creativecommons.org/licenses/by/4.0/"
