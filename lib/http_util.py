@@ -32,7 +32,15 @@ def http_post_request(url, headers={}, auth=(), data={}):
 
     signal.signal(signal.SIGALRM, handle_timeout)
     signal.alarm(timeout)
-    response = requests.post(url, headers=headers, auth=auth, data=data)
+    redirects = 0
+    MAX_REDIRECTS = 4
+    response = requests.post(url, headers=headers, auth=auth, data=data, allow_redirects=False)
+    while response.is_permanent_redirect and redirects < MAX_REDIRECTS:
+        redirects += 1
+        response = requests.post(response.headers['Location'], headers=headers, auth=auth, data=data, allow_redirects=False)
+    while response.is_redirect and redirects < MAX_REDIRECTS:
+        redirects += 1
+        response = requests.Session().send(response.next)
     signal.alarm(0)
     return response
 
