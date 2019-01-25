@@ -21,7 +21,7 @@ http_util.py
 command_line_interface.py
 """
 
-VERSION = 'OpenStaxCNX Content-Copy-Tool v.1.2'
+VERSION = 'OpenStaxCNX Content-Copy-Tool v1.3'
 PRODUCTION = True
 
 
