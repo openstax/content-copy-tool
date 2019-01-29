@@ -9,6 +9,8 @@ import requests
 import signal
 import subprocess
 
+from util import CCTError
+
 import makemultipart as multi
 
 """
@@ -21,8 +23,16 @@ timeout = 300
 def http_post_request(url, headers={}, auth=(), data={}):
     """
     Sends a POST request to the specified url with the specified headers, data,
-    and authentication tuple.
+    and authentication tuple. Because we want to the post request to be successful
+    in the widest variety of cases, all permanent redirects are treated as a 308
+    would (i.e. POST is not converted to GET). Because we expect successful POSTs
+    to redirect to the result of the request, temporary redirects are all treated
+    as a 303 would (i.e. POST can be converted to GET) and then the following GET
+    request redirects are followed.
     """
+
+    MAX_REDIRECTS = 4
+    redirects = 0
 
     def handle_timeout(signal, frame):
         app = '"Terminal"'
@@ -30,9 +40,23 @@ def http_post_request(url, headers={}, auth=(), data={}):
         bashCommand = "echo; osascript -e 'tell application "+app+"' -e 'activate' -e 'display alert "+msg+"' -e 'end tell'"
         subprocess.call([bashCommand], shell=True)
 
+    def follow_with_post(response):
+        return requests.post(response.headers['Location'], headers=headers, auth=auth, data=data, allow_redirects=False)
+
+    def follow_with_get(response):
+        return requests.Session().send(response.next, allow_redirects=False)
+
     signal.signal(signal.SIGALRM, handle_timeout)
     signal.alarm(timeout)
-    response = requests.post(url, headers=headers, auth=auth, data=data)
+    response = requests.post(url, headers=headers, auth=auth, data=data, allow_redirects=False)
+    while response.is_redirect and redirects < MAX_REDIRECTS:
+        redirects += 1
+        response = {
+            True: follow_with_post,
+            False: follow_with_get
+        }[response.is_permanent_redirect and response.request.method == 'POST'](response)
+    if response.is_redirect:
+        raise CCTError("POST redirection failed after maximum number of requests")
     signal.alarm(0)
     return response
 
