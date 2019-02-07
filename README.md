@@ -8,29 +8,31 @@ to another. The tool is a python script that runs via the command line.
 The tool is made up of a set of files and scripts:
 
 ```
+README.md (you are here!)
 content-copy.py (for backwards compatibility)
-content_copy.py
 setup.py
 example-settings.json
 example-input.tsv
-__init__.py
-__version__.py
-lib/
-    bookmap.py
-    command_line_interface.py
-    http_util.py
-    makemultipart.py
-    operation_objects.py
-    role_updates.py
-    util.py
+contentcopytool/
+    content_copy.py
     __init__.py
+    __version__.py
+    lib/
+        bookmap.py
+        command_line_interface.py
+        http_util.py
+        makemultipart.py
+        operation_objects.py
+        role_updates.py
+        util.py
+        __init__.py
 ```
 
 
 #### Setting up the tool
 * If you are using git (recommended), from the Documents folder enter the command 
 ```bash
-git clone https://github.com/Rhaptos/content-copy-tool.git
+git clone https://github.com/openstax/content-copy-tool.git
 ```
 This will copy the tool down to your machine and put the contents into the content-copy-tool folder.
 * If you are using git (recommended), to get the latest version of the tool, navigate to the tool’s 
@@ -40,7 +42,7 @@ with the latest version. You can skip to step 5.
 * If you are NOT using git, Extract the content-copy-tool zip contents into this folder. The rest of 
 these instructions assume that the top directory of the tool is in Documents/content-copy-tool. To 
 confirm, this, you should see `content-copy.py`, `setup.py`, `example-settings.json`, `example-input.tsv`,
-and `lib/` in `Documents/content-copy-tool`.
+and `contentcopytool/` in `Documents/content-copy-tool`.
 * Open a terminal in the tool’s top directory: open Terminal, enter the command
 ```bash
 cd ~/Documents/content-copy-tool
@@ -52,8 +54,8 @@ bring you to the top level directory of the tool from anywhere in a terminal.
 * Run one of the following commands to set up the tool. This will install all the
 necessary packages for using the tool.
 ```bash
-python setup.py install # If you are using a virtual environment
-python setup.py install --user # If you are not
+pip install . # If you are using a virtual environment
+pip install . --user # If you are not
 ```
 
 * The first thing you should do is create a settings file. Start by opening the
@@ -153,9 +155,6 @@ want to remove section numbers, set the value to false.
 The tool can be run in several ways. Each of the following commands is entirely interchangeable:
 ```bash
 content-copy [args] # Preferred (not dependent on context)
-
-./content_copy.py [args]
-python -m content_copy [args]
 
 ./content-copy.py [args] # Deprecated
 python -m content-copy [args] # Deprecated

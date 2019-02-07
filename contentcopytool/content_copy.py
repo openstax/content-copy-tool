@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import os.path as path
 import sys
 import traceback
