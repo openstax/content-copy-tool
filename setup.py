@@ -15,6 +15,7 @@ setup(
   python_requires = '>=2.7.0',
   url = 'https://github.com/openstax/content-copy-tool',
   packages = find_packages(),
+  py_modules = ['content_copy', '__version__'],
   install_requires = [
     'requests',
     'requests[security]',

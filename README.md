@@ -8,7 +8,8 @@ to another. The tool is a python script that runs via the command line.
 The tool is made up of a set of files and scripts:
 
 ```
-content-copy.py
+content-copy.py (for backwards compatibility)
+content_copy.py
 setup.py
 example-settings.json
 example-input.tsv
@@ -152,8 +153,12 @@ want to remove section numbers, set the value to false.
 The tool can be run in several ways. Each of the following commands is entirely interchangeable:
 ```bash
 content-copy [args] # Preferred (not dependent on context)
-./content-copy.py [args]
-python -m content-copy [args]
+
+./content_copy.py [args]
+python -m content_copy [args]
+
+./content-copy.py [args] # Deprecated
+python -m content-copy [args] # Deprecated
 ```
 
 Before you run the tool, be sure that you are in the tool’s top directory. To
