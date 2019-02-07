@@ -1,4 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+
+import os.path as path
 import sys
 import traceback
 import lib.util as util
@@ -8,6 +10,7 @@ from lib.bookmap import *
 from lib.role_updates import *
 import subprocess
 import signal
+
 """
 This script is the main script of the content-copy-tool, it requires the
 presence of the following utility files to execute properly.
@@ -21,7 +24,12 @@ http_util.py
 command_line_interface.py
 """
 
-VERSION = 'OpenStaxCNX Content-Copy-Tool v.1.2'
+here = path.abspath(path.dirname(__file__))
+version = {}
+with open(path.join(here, '__version__.py')) as f:
+  exec(f.read(), version)
+
+VERSION = 'Content-Copy-Tool v%s' % version['__version__']
 PRODUCTION = True
 
 
