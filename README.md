@@ -5,30 +5,35 @@ to another. The tool is a python script that runs via the command line.
 
 
 #### What’s in the box
-The tool is made up of a set of scripts:
+The tool is made up of a set of files and scripts:
+
 ```
-content-copy.py
-setup.sh
+README.md (you are here!)
+content-copy.py (for backwards compatibility)
+setup.py
 example-settings.json
 example-input.tsv
-__init__.py
-lib/
-    bookmap.py
-    command_line_interface.py
-    http_util.py
-    makemultipart.py
-    operation_objects.py
-    role_updates.py
-    util.py
+contentcopytool/
+    content_copy.py
     __init__.py
+    __version__.py
+    lib/
+        bookmap.py
+        command_line_interface.py
+        http_util.py
+        makemultipart.py
+        operation_objects.py
+        role_updates.py
+        util.py
+        __init__.py
 ```
 
-content-copy.py is the primary script, but before you run the tool, you need to
-set it up.
 
 #### Setting up the tool
 * If you are using git (recommended), from the Documents folder enter the command 
-```git clone https://github.com/Rhaptos/content-copy-tool.git```
+```bash
+git clone https://github.com/openstax/content-copy-tool.git
+```
 This will copy the tool down to your machine and put the contents into the content-copy-tool folder.
 * If you are using git (recommended), to get the latest version of the tool, navigate to the tool’s 
 top directory (see beginning of step 5), and enter the command `git pull`. This will update your tool 
@@ -36,21 +41,23 @@ with the latest version. You can skip to step 5.
 * If you are NOT using git, Create a new folder in your Documents folder called content-copy-tool
 * If you are NOT using git, Extract the content-copy-tool zip contents into this folder. The rest of 
 these instructions assume that the top directory of the tool is in Documents/content-copy-tool. To 
-confirm, this, you should see `content-copy.py`, `setup.sh`, `example-settings.json`, `example-input.tsv`, 
-and `lib/` in `Documents/content-copy-tool`.
+confirm, this, you should see `content-copy.py`, `setup.py`, `example-settings.json`, `example-input.tsv`,
+and `contentcopytool/` in `Documents/content-copy-tool`.
 * Open a terminal in the tool’s top directory: open Terminal, enter the command
-```
+```bash
 cd ~/Documents/content-copy-tool
 ```
 (see Enabling “Open Terminal At Folder” Service section for how to do this
 through Finder). Note: this command will
 bring you to the top level directory of the tool from anywhere in a terminal.
 
-* Run the following command to set up the tool. This script will install all the
+* Run one of the following commands to set up the tool. This will install all the
 necessary packages for using the tool.
+```bash
+pip install . # If you are using a virtual environment
+pip install . --user # If you are not
 ```
-sh setup.sh
-```
+
 * The first thing you should do is create a settings file. Start by opening the
 `example_settings.json` file in a text editor.
 * If you have placed the tool in the directory `Documents/content-copy-tool`
@@ -145,10 +152,18 @@ to remove section numbers from the title, set the value to true. If you do NOT
 want to remove section numbers, set the value to false.
 
 #### Running the tool
+The tool can be run in several ways. Each of the following commands is entirely interchangeable:
+```bash
+content-copy [args] # Preferred (not dependent on context)
+
+./content-copy.py [args] # Deprecated
+python -m content-copy [args] # Deprecated
+```
+
 Before you run the tool, be sure that you are in the tool’s top directory. To
 run the tool enter the command:
 ```
-./content-copy.py --settings [settings file] --input-file [input file] [options]
+content-copy --settings [settings file] --input-file [input file] [options]
 ```
 Where [settings file] is the name of the settings file, [input file] is the name
 of the input file, and [options] are the run options. If you are unfamiliar with
@@ -157,7 +172,7 @@ Command Line Interfaces section at the bottom.
 
 If you need an explanation of the tool from within the terminal, run
 ```
-./content-copy.py --help or ./content-copy.py -h
+content-copy --help or content-copy -h
 ```
 This will display the usage and explanation of the content copy tool.
 
@@ -253,38 +268,38 @@ created correctly):
 You want to create placeholder modules and workgroups on production for chapters
 1, 2, and 3 of Psychology.
 ```
-./content-copy.py -s staging3-prod-OSCPsych.json -i Psychology.tsv -a 1 2 3 -w
+content-copy -s staging3-prod-OSCPsych.json -i Psychology.tsv -a 1 2 3 -w
 ```
 
 You want to copy the modules from staging3 to production for chapters 1, 2, and
 3 of Psychology and alter the roles.
 ```
-./content-copy.py -s staging3-prod-OSCPsych.json -i Psychology.tsv -a 1 2 3 -cr
+content-copy -s staging3-prod-OSCPsych.json -i Psychology.tsv -a 1 2 3 -cr
 ```
 
 You want to create placeholder modules and workgroups on production for chapters
 8, 9, 10, 11, and 12 of Psychology, copy the copy the content from staging3 to
 production for those chapters of Psychology, and alter the roles.
 ```
-./content-copy.py -s staging3-prod-OSCPsych.json -i Psychology.tsv -a 8 9 10 11 -wcr
+content-copy -s staging3-prod-OSCPsych.json -i Psychology.tsv -a 8 9 10 11 -wcr
 ```
 
 You want to create only placeholder modules on production for the remaining
 chapters in Psychology, copy the content over but not update the roles.
 ```
-./content-copy.py -s staging3-prod-OSCPsych.json -i Psychology.tsv --exclude-chapters 1 2 3 8 9 10 11 -mc
+content-copy -s staging3-prod-OSCPsych.json -i Psychology.tsv --exclude-chapters 1 2 3 8 9 10 11 -mc
 ```
 
 You want to accept all of the pending role requests and publish all of
 Psychology.
 ```
-./content-copy.py -s staging3-prod-OSCPsych.json -i Psychology.tsv --accept-roles -p
+content-copy -s staging3-prod-OSCPsych.json -i Psychology.tsv --accept-roles -p
 ```
 
 You want to create placeholder modules on naginata for four specific modules,
 copy the content over and publish them.
 ```
-./content-copy.py -s prod-naginata-qaUser.json -i check.tsv -mcp
+content-copy -s prod-naginata-qaUser.json -i check.tsv -mcp
 ```
 Here the input file is special, since this is just a few specific modules, the
 bookmap full of entries will be overload. The input file may look something like
@@ -335,7 +350,7 @@ program you want  to run. In this case, the program is called content-copy. If
 the file you are running (in this case, content-copy.py) is an executable file,
 you can run the program with the “./” indicator at the beginning, for example,
 ```
-./content-copy.py  
+content-copy  
 ```
 When you run a command line program, you can pass it arguments, or parameters,
 that modify or specify what the program will do. Often times, these arguments
@@ -401,5 +416,5 @@ be able to complete successfully. To keep your mac from going to sleep (if you a
 stepping away from your computer), you can use the `caffeinate` tool to keep it awake. 
 To use this you will prepend `caffeinate -i` to the front of the tool’s command, for example:
 ```
-caffeinate -i ./content-copy.py -s settings.json -i input.tsv -wcop
+caffeinate -i content-copy -s settings.json -i input.tsv -wcop
 ```

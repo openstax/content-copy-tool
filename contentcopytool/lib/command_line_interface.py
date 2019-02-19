@@ -31,7 +31,7 @@ and the title of the file should be [the title of the book].csv
 Alternatively, the tool can accept a .tsv (tab separated values) file.
 
 Example usage:
-./cct.py -s settings.json -i Psychology.csv -a 0 1 2 3 -wcr
+content-copy -s settings.json -i Psychology.csv -a 0 1 2 3 -wcr
 
 This will copy chapters 0, 1, 2, and 3 from the Psychology book according to
 the csv (or tsv) file, creating workgroups for each chapter, and edit the roles
@@ -39,7 +39,7 @@ according to the settings described by settings.json
 """
 
 def get_parser(version):
-    parser = argparse.ArgumentParser(description=description, prog="content-copy.py",
+    parser = argparse.ArgumentParser(description=description, prog="content-copy",
                                      usage='%(prog)s -s SETTINGS -i INPUT [options]',
                                      epilog=epi, formatter_class=RawDescriptionHelpFormatter)
 
